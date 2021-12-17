@@ -1,0 +1,26 @@
+create git repo
+add CI to build docker (upload on tag only)
+
+add car extracts for all message types
+add broadcvast of race flags to all connected cars (irregardless of key)
+add race poistion updates for all connected
+poll / update set of cars of interest every 60s
+
+prevent overflow of any data : does it block on full or should we throw it asway?
+need client to throw out messages older than certain time
+ -> could that be done by an interceptor on the way out
+
+move the race logic into the server so it can trgger and track along
+
+do perf test to make sure it can handle traffic from race
+
+add lemon-pi client grpc for this ... on pi it will listen for messges from car, and reconnect every 10, 30, 60 seconds on failure
+add grpc posting for this
+add URL config for this into lemon-pi and pit
+if URL configured then keep wifi enabled
+for lemon -pit even if no race-id running we still want to go into race mode through some logic
+
+add rest endpoint too to server : allow admin login and starting of a race
+ - do not allow the same race to run twice
+ - do allow restart via rest
+ - do allow more than one race to run at once

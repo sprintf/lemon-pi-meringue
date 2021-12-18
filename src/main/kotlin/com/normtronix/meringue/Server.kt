@@ -12,16 +12,16 @@ import org.slf4j.LoggerFactory
 @GrpcService(interceptors = [ContextInterceptor::class, ServerSecurityInterceptor::class])
 class Server() : LemonPiCommsServiceGrpcKt.LemonPiCommsServiceCoroutineImplBase() {
 
-    // map of trackId -> pitId -> ChannelAndKey<Rpc.ToPitMessage>
-    val toPitIndex: MutableMap<String, MutableMap<String, ChannelAndKey<Rpc.ToPitMessage>>> = mutableMapOf()
-    // map of trackId -> pitId -> ChannelAndKey<Rpc.ToCarMessage>
-    val toCarIndex: MutableMap<String, MutableMap<String, ChannelAndKey<Rpc.ToCarMessage>>> = mutableMapOf()
+    // map of trackId -> pitId -> ChannelAndKey<LemonPi.ToPitMessage>
+    val toPitIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToPitMessage>>> = mutableMapOf()
+    // map of trackId -> pitId -> ChannelAndKey<LemonPi.ToCarMessage>
+    val toCarIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToCarMessage>>> = mutableMapOf()
 
     override suspend fun pingPong(request: Empty): Empty {
         return Empty.getDefaultInstance()
     }
 
-    override suspend fun sendMessageFromCar(request: Rpc.ToPitMessage): Empty {
+    override suspend fun sendMessageFromCar(request: LemonPi.ToPitMessage): Empty {
         val requestDetails = requestor.get()
         val currentTrack = requestDetails.trackId
         val currentCar = requestDetails.carNum
@@ -32,7 +32,7 @@ class Server() : LemonPiCommsServiceGrpcKt.LemonPiCommsServiceCoroutineImplBase(
         return Empty.getDefaultInstance()
     }
 
-    override suspend fun sendMessageFromPits(request: Rpc.ToCarMessage): Empty {
+    override suspend fun sendMessageFromPits(request: LemonPi.ToCarMessage): Empty {
         val requestDetails = requestor.get()
         val currentTrack = requestDetails.trackId
         val currentKey = requestDetails.key
@@ -42,7 +42,7 @@ class Server() : LemonPiCommsServiceGrpcKt.LemonPiCommsServiceCoroutineImplBase(
         return Empty.getDefaultInstance()
     }
 
-    override fun receivePitMessages(request: Rpc.CarNumber): Flow<Rpc.ToCarMessage> {
+    override fun receivePitMessages(request: LemonPi.CarNumber): Flow<LemonPi.ToCarMessage> {
         val requestDetails = requestor.get()
         val currentTrack = requestDetails.trackId
         val currentKey = requestDetails.key
@@ -50,7 +50,7 @@ class Server() : LemonPiCommsServiceGrpcKt.LemonPiCommsServiceCoroutineImplBase(
         return getSendChannel(currentTrack, request.carNumber, currentKey, toCarIndex).consumeAsFlow()
     }
 
-    override fun receiveCarMessages(request: Rpc.CarNumber): Flow<Rpc.ToPitMessage> {
+    override fun receiveCarMessages(request: LemonPi.CarNumber): Flow<LemonPi.ToPitMessage> {
         val requestDetails = requestor.get()
         val currentTrack = requestDetails.trackId
         val currentKey = requestDetails.key
@@ -86,7 +86,7 @@ class Server() : LemonPiCommsServiceGrpcKt.LemonPiCommsServiceCoroutineImplBase(
         }
     }
 
-    private fun extractTargetCar(request: Rpc.ToCarMessage): String {
+    private fun extractTargetCar(request: LemonPi.ToCarMessage): String {
         if (request.hasMessage()) {
             return request.message.carNumber
         } else if (request.hasSetTarget()) {
@@ -105,7 +105,7 @@ class Server() : LemonPiCommsServiceGrpcKt.LemonPiCommsServiceCoroutineImplBase(
     /*
      * get all the connected cars at a track .. useful for sending out yellow flags
      */
-    private fun getConnectedCarChannels(trackId: String) :List<Channel<Rpc.ToCarMessage>> {
+    private fun getConnectedCarChannels(trackId: String) :List<Channel<LemonPi.ToCarMessage>> {
         val cars = toCarIndex.get(trackId) ?: return emptyList()
         return cars.values.filter {
             !it.channel.isClosedForSend

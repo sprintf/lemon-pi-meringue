@@ -29,12 +29,12 @@ class TrackMetaDataLoader {
         log.info("finished loading track data")
     }
 
-    class Tracks() {
+    class Tracks {
         var tracks: MutableList<Track> = mutableListOf()
     }
 
     // the snake case names are needed to correctly read the yaml
-    class Track() {
+    class Track {
         var name: String = ""
         var code: String = ""
         var start_finish_coords: String = ""
@@ -43,7 +43,7 @@ class TrackMetaDataLoader {
         var pit_entry_direction: String = ""
         var pit_out_coords: String = ""
         var pit_out_direction: String = ""
-        var radio_sync_list: Object = Object()
+        var radio_sync_list: Any = Any()
         var radio_sync_coords: String = ""
         var radio_sync_direction: String = ""
         var hidden: Boolean = false

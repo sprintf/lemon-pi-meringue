@@ -1,22 +1,17 @@
 package com.normtronix.meringue
 
 import com.google.protobuf.Empty
-import io.grpc.CallCredentials
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.stub.StreamObserver
 import io.grpc.testing.GrpcCleanupRule
 import kotlinx.coroutines.*
 import net.devh.boot.grpc.client.security.CallCredentialsHelper
-import net.devh.boot.grpc.server.security.authentication.BasicGrpcAuthenticationReader
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Bean
 import java.util.concurrent.TimeUnit
 
 @SpringBootTest
@@ -65,11 +60,11 @@ internal class ServerTest {
         runBlocking {
             val stub = setupBlockingStub()
             val ping = createPingMessage("12", 1)
-            val carNumber = Rpc.CarNumber.newBuilder().setCarNumber("12").build()
+            val carNumber = LemonPi.CarNumber.newBuilder().setCarNumber("12").build()
 
             val carCreds = CallCredentialsHelper.basicAuth("thil/12", "foo")
             val pitCreds = CallCredentialsHelper.basicAuth("thil/12-pit", "foo")
-            val observer = SO<Rpc.ToPitMessage>()
+            val observer = SO<LemonPi.ToPitMessage>()
 
             coroutineScope {
                 launch {
@@ -113,28 +108,28 @@ internal class ServerTest {
 
     }
 
-    internal fun createPingMessage(carNumber: String, seqNum: Int) : Rpc.ToPitMessage {
-        val pingMessage = Rpc.ToPitMessage.newBuilder().pingBuilder
+    internal fun createPingMessage(carNumber: String, seqNum: Int) : LemonPi.ToPitMessage {
+        val pingMessage = LemonPi.ToPitMessage.newBuilder().pingBuilder
             .setSender(carNumber)
             .setSeqNum(seqNum)
             .build()
-        return Rpc.ToPitMessage.newBuilder().mergePing(pingMessage).build()
+        return LemonPi.ToPitMessage.newBuilder().mergePing(pingMessage).build()
     }
 
 //    @Test
 //    fun testASync() {
 //        val stub = setupAsyncStub()
-//        val ping = Rpc.ToPitMessage.newBuilder().pingBuilder
+//        val ping = LemonPi.ToPitMessage.newBuilder().pingBuilder
 //            .setSeqNum(1)
 //            .setSender("12")
 //            .build()
 //        val ro = stub.
-//        stub.sendMessageFromCar(Rpc.ToPitMessage.newBuilder().mergePing(ping).build(), ro)
+//        stub.sendMessageFromCar(LemonPi.ToPitMessage.newBuilder().mergePing(ping).build(), ro)
 //
-//        val carNumbers = Rpc.CarNumbers.newBuilder()
+//        val carNumbers = LemonPi.CarNumbers.newBuilder()
 //            .addCarNumber("12").build()
 //        val receiveCarMessages = stub.receiveCarMessages(carNumbers)
-//        stub.sendMessageFromCar(Rpc.ToPitMessage.newBuilder().mergePing(ping).build())
+//        stub.sendMessageFromCar(LemonPi.ToPitMessage.newBuilder().mergePing(ping).build())
 //        receiveCarMessages.forEach {
 //            println("got a car message !!!")
 //        }

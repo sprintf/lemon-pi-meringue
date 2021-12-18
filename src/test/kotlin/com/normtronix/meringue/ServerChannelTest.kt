@@ -17,7 +17,7 @@ internal class ServerChannelTest {
                 launch(requestor.asContextElement(value= RequestDetails("thil", "99", "foo"))) {
                     s.sendMessageFromCar(createPittingMessage("99", 1))
                 }
-                val bg = launch(requestor.asContextElement(value=RequestDetails("thil", "99-pit", "foo"))) {
+                launch(requestor.asContextElement(value=RequestDetails("thil", "99-pit", "foo"))) {
                     collector.getMessages()
                 }
                 println("haha !")
@@ -44,7 +44,7 @@ internal class ServerChannelTest {
                 launch(requestor.asContextElement(value = RequestDetails("thil", "99-pit", "foo"))) {
                     s.sendMessageFromPits(createDriverMessage("99", 1))
                 }
-                val bg = launch(requestor.asContextElement(value = RequestDetails("thil", "99", "foo"))) {
+                launch(requestor.asContextElement(value = RequestDetails("thil", "99", "foo"))) {
                     collector.getMessages()
                 }
                 println("haha !")
@@ -62,26 +62,26 @@ internal class ServerChannelTest {
         }
     }
 
-    internal fun createPittingMessage(carNumber: String, seqNum: Int) : Rpc.ToPitMessage {
-        val pittingMessage = Rpc.ToPitMessage.newBuilder().pittingBuilder
+    internal fun createPittingMessage(carNumber: String, seqNum: Int) : LemonPi.ToPitMessage {
+        val pittingMessage = LemonPi.ToPitMessage.newBuilder().pittingBuilder
             .setSender(carNumber)
             .setSeqNum(seqNum)
             .build()
-        return Rpc.ToPitMessage.newBuilder().mergePitting(pittingMessage).build()
+        return LemonPi.ToPitMessage.newBuilder().mergePitting(pittingMessage).build()
     }
 
-    internal fun createDriverMessage(carNumber: String, seqNum: Int) : Rpc.ToCarMessage {
-        val driverMessage = Rpc.ToCarMessage.newBuilder().messageBuilder
+    internal fun createDriverMessage(carNumber: String, seqNum: Int) : LemonPi.ToCarMessage {
+        val driverMessage = LemonPi.ToCarMessage.newBuilder().messageBuilder
             .setCarNumber(carNumber)
             .setSeqNum(seqNum)
             .setText("Hello")
             .build()
-        return Rpc.ToCarMessage.newBuilder().mergeMessage(driverMessage).build()
+        return LemonPi.ToCarMessage.newBuilder().mergeMessage(driverMessage).build()
     }
 
     class PitMessageCollector(val s: Server, val carNum: String) {
 
-        val messages: MutableList<Rpc.ToPitMessage> = mutableListOf()
+        val messages: MutableList<LemonPi.ToPitMessage> = mutableListOf()
 
         suspend fun getMessages() {
             println("sending message to get stuff from car")
@@ -94,7 +94,7 @@ internal class ServerChannelTest {
 
     class CarMessageCollector(val s: Server, val carNum: String) {
 
-        val messages: MutableList<Rpc.ToCarMessage> = mutableListOf()
+        val messages: MutableList<LemonPi.ToCarMessage> = mutableListOf()
 
         suspend fun getMessages() {
             println("sending message to get stuff from pit")
@@ -105,8 +105,8 @@ internal class ServerChannelTest {
     }
 }
 
-internal fun createCarNumber(number: String): Rpc.CarNumber {
-    val builder = Rpc.CarNumber.newBuilder()
+internal fun createCarNumber(number: String): LemonPi.CarNumber {
+    val builder = LemonPi.CarNumber.newBuilder()
     builder.setCarNumber(number)
     return builder.build()
 }

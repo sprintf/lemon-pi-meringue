@@ -27,5 +27,7 @@ jobs:
         run: chmod +x gradlew
       - name: Relink protos
         run: rm src/main/proto/lemon-pi.proto && ln -s protos/lemon-pi-protos/lemon-pi.proto src/main/proto/lemon-pi.proto
+      - name: show files
+        run: ls -lR ./protos && ls -lR ./src/main/protos
       - name: Build with Gradle
         run: ./gradlew build

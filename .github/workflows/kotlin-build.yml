@@ -28,6 +28,6 @@ jobs:
       - name: Relink protos
         run: rm src/main/proto/lemon-pi.proto && ln -s protos/lemon-pi-protos/lemon-pi.proto src/main/proto/lemon-pi.proto
       - name: show files
-        run: ls -lR ./protos && ls -lR ./src/main/protos
+        run: ls -lR . && ls -lR ./protos && ls -lR ./src/main/proto
       - name: Build with Gradle
         run: ./gradlew build

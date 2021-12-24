@@ -26,7 +26,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Relink protos
-        run: rm src/main/proto/lemon-pi.proto && ln -s `pwd`/protos/lemon-pi-protos/lemon-pi.proto src/main/proto/lemon-pi.proto
+        run: rm src/main/proto/lemon-pi.proto && ln -s `pwd`/protos/lemon-pi.proto src/main/proto/lemon-pi.proto
       - name: show files
         run: ls -lR . && ls -lR ./protos && ls -lR ./src/main/proto
       - name: Build with Gradle

@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: sprintf/lemon-pi-protos
-          path: '.'
+          path: './protos'
       - name: Set up JDK 17
         uses: actions/setup-java@v1
         with:
@@ -26,6 +26,6 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Relink protos
-        run: rm src/main/proto/lemon-pi.proto && ln -s lemon-pi-protos/lemon-pi.proto src/main/proto/lemon-pi.proto
+        run: rm src/main/proto/lemon-pi.proto && ln -s protos/lemon-pi-protos/lemon-pi.proto src/main/proto/lemon-pi.proto
       - name: Build with Gradle
         run: ./gradlew build

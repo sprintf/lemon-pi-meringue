@@ -1,3 +1,15 @@
+generate python code compatible with package less java code
+in python CI .. need to bring in protobuf grpc gen (or not)
+in instructions : dont need to run protoc or install it
+fix the package name for the python grpc code
+add auth into the python grpc code
+
+update pits to receive flag and race position events
+
+-> broadcast event on car connected
+-> broadcast event on car disconnected
+
+
 create git repo
 add CI to build docker (upload on tag only)
 

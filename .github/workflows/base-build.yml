@@ -26,3 +26,8 @@ jobs:
         run: rm src/main/proto/lemon-pi.proto && ln -s `pwd`/protos/lemon-pi.proto src/main/proto/lemon-pi.proto
       - name: Build with Gradle
         run: ./gradlew build
+      - name: Upload Jar
+        uses: actions/upload-artifact@v2
+        with:
+          name: bootJar
+          path: build/lib/*.jar

@@ -48,10 +48,10 @@ class DataSource1(val raceId:String) {
 
 }
 
-fun main() {
-    println("running")
-    val ds1 = DataSource1("37872")
-    val streamUrl = ds1.connect()
-    ds1.stream(streamUrl, DataSourceHandler(RaceOrder(), listOf("23", "49")))
-    println("finished")
-}
+//fun main() {
+//    println("running")
+//    val ds1 = DataSource1("37872")
+//    val streamUrl = ds1.connect()
+//    ds1.stream(streamUrl, DataSourceHandler(RaceOrder(), listOf("23", "49")))
+//    println("finished")
+//}

@@ -8,7 +8,7 @@ jobs:
   create-docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/workflows/base-build.yml@large-initial-pr
+      - uses: sprintf/lemon-pi-meringue/.github/workflows/base-build.yml@large-initial-pr
       - name: build docker image
         run: docker build . -t meringue
 #      - id: 'auth'

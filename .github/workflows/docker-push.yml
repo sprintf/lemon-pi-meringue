@@ -9,6 +9,7 @@ jobs:
     uses: sprintf/lemon-pi-meringue/.github/workflows/base-build.yml@large-initial-pr
 
   create-docker:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: build docker image

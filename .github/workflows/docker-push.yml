@@ -18,7 +18,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: bootJar
-          path: build/lib
+          path: build/libs
       - name: build docker image
         run: docker build . -t meringue
 #      - id: 'auth'

@@ -5,6 +5,7 @@ import org.springframework.boot.gradle.tasks.bundling.BootJar
 val protobufVersion: String by project
 val protobufPluginVersion: String by project
 val grpcVersion: String by project
+val ktorVersion: String by project
 
 
 plugins {
@@ -32,13 +33,15 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-security")
-	implementation("com.google.cloud:spring-cloud-gcp-starter")
+	implementation("com.google.code.gson:gson:2.8.9")
+	implementation("io.ktor:ktor-client-websockets:$ktorVersion")
+	implementation("io.ktor:ktor-client-cio:$ktorVersion")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
 	implementation("net.devh:grpc-server-spring-boot-starter:2.13.0.RELEASE")
 
-	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.8")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
 
 	implementation("io.grpc:grpc-protobuf:${grpcVersion}")
 	implementation("io.grpc:grpc-stub:${grpcVersion}")

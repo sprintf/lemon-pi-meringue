@@ -1,0 +1,13 @@
+
+name: Kotlin Application Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  call-workflow:
+    uses: sprintf/lemon-pi-meringue/.github/workflows/base-build.yml@main

@@ -1,0 +1,6 @@
+# we only want the uber jar to be included in the docker container
+# this container is just used for running the image, so we exclude
+# gradle, the src code etc
+*
+**
+!build/libs/*.jar

@@ -2,20 +2,30 @@ package com.normtronix.meringue
 
 import com.google.protobuf.Empty
 import com.normtronix.meringue.ContextInterceptor.Companion.requestor
+import com.normtronix.meringue.event.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.time.Instant
 
 
 @GrpcService(interceptors = [ContextInterceptor::class, ServerSecurityInterceptor::class])
-class Server() : LemonPiCommsServiceGrpcKt.LemonPiCommsServiceCoroutineImplBase() {
+class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler {
 
     // map of trackId -> pitId -> ChannelAndKey<LemonPi.ToPitMessage>
     val toPitIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToPitMessage>>> = mutableMapOf()
     // map of trackId -> pitId -> ChannelAndKey<LemonPi.ToCarMessage>
     val toCarIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToCarMessage>>> = mutableMapOf()
+
+    // sequence number for sends emanating from here
+    var seqNo = 1
+
+    init {
+        Events.register(RaceStatusEvent::class.java, this)
+        Events.register(LapCompletedEvent::class.java, this)
+    }
 
     override suspend fun pingPong(request: Empty): Empty {
         return Empty.getDefaultInstance()
@@ -124,6 +134,45 @@ class Server() : LemonPiCommsServiceGrpcKt.LemonPiCommsServiceCoroutineImplBase(
 
     companion object {
         val log: Logger = LoggerFactory.getLogger(Server::class.java)
+    }
+
+    override suspend fun handleEvent(e: Event) {
+        when (e) {
+            is RaceStatusEvent -> {
+                getConnectedCarChannels("trackId").forEach {
+                    val flagStatus = LemonPi.RaceFlagStatus.valueOf(e.flagStatus)
+                    val msg = LemonPi.ToCarMessage.newBuilder().raceStatusBuilder
+                        .setSender("meringue")
+                        .setTimestamp(Instant.now().epochSecond.toInt())
+                        .setSeqNum(seqNo++)
+                        .setFlagStatus(flagStatus)
+                        .build()
+                    it.send(LemonPi.ToCarMessage.newBuilder().mergeRaceStatus(msg).build())
+                }
+            }
+            is LapCompletedEvent -> {
+                val aheadMsg = when (e.ahead ) {
+                    null -> { null }
+                    else -> {
+                        LemonPi.Opponent.newBuilder()
+                            .setCarNumber(e.ahead)
+                            .setGapText(e.gap)
+                            .build()
+                    }
+                }
+                val msg = LemonPi.ToCarMessage.newBuilder().racePositionBuilder
+                    .setSender("meringue")
+                    .setTimestamp(Instant.now().epochSecond.toInt())
+                    .setSeqNum(seqNo++)
+                    .setCarNumber(e.carNumber)
+                    .setLapCount(e.lapCount)
+                    .setPosition(e.position)
+                    .setPositionInClass(e.positionInClass)
+                    .setCarAhead(aheadMsg)
+                    .build()
+                // todo : lookup connected car channels (but do not create them)
+            }
+        }
     }
 }
 

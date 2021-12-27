@@ -18,9 +18,9 @@ import java.util.concurrent.TimeUnit
 internal class ServerTest {
 
     val grpcCleanup = GrpcCleanupRule()
-    var asyncStub: LemonPiCommsServiceGrpc.LemonPiCommsServiceStub? = null
+    var asyncStub: CommsServiceGrpc.CommsServiceStub? = null
 
-    fun setupBlockingStub() :  LemonPiCommsServiceGrpc.LemonPiCommsServiceBlockingStub {
+    fun setupBlockingStub() :  CommsServiceGrpc.CommsServiceBlockingStub {
         val serverName = InProcessServerBuilder.generateName()
         val server = Server()
         val trackMetaData: TrackMetaDataLoader = mock(TrackMetaDataLoader::class.java)
@@ -33,14 +33,14 @@ internal class ServerTest {
                 .addService(server)
                 .build()).start()
 
-        asyncStub = LemonPiCommsServiceGrpc.newStub(
+        asyncStub = CommsServiceGrpc.newStub(
             grpcCleanup.register(
                 InProcessChannelBuilder.forName(serverName).
                 directExecutor().build()
             )
         ).withDeadlineAfter(1000, TimeUnit.MILLISECONDS)
 
-        return LemonPiCommsServiceGrpc.newBlockingStub(
+        return CommsServiceGrpc.newBlockingStub(
             grpcCleanup.register(
                 InProcessChannelBuilder.forName(serverName).
                     directExecutor().build()

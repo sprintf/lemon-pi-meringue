@@ -19,8 +19,7 @@ jobs:
         with:
           name: bootJar
           path: build/libs
-      - name: build docker image
-        run: docker build . -t meringue
+
       - id: 'auth'
         uses: 'google-github-actions/auth@v0'
         with:
@@ -29,5 +28,12 @@ jobs:
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v0'
 
-      - name: 'Use gcloud CLI'
-        run: 'gcloud info'
+      - name: 'Configure Docker'
+        run: gcloud auth configure-docker us.gcr.io
+
+      - name: build docker image
+        run: docker build . -t meringue us.gcr.io/meringue/meringue:$GITHUB_SHA
+
+      - name: push docker image
+        run: docker push us.gcr.io/meringue/meringue:$GITHUB_SHA
+

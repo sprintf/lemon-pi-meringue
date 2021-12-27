@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    uses: sprintf/lemon-pi-meringue/.github/workflows/base-build.yml@large-initial-pr
+    uses: sprintf/lemon-pi-meringue/.github/workflows/base-build.yml@main
 
   create-docker:
     needs: build
@@ -21,14 +21,13 @@ jobs:
           path: build/libs
       - name: build docker image
         run: docker build . -t meringue
-#      - id: 'auth'
-#      uses: 'google-github-actions/auth@v0'
-#      with:
-#        workload_identity_provider: 'projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
-#        service_account: 'my-service-account@my-project.iam.gserviceaccount.com'
-#
-#      - name: 'Set up Cloud SDK'
-#        uses: 'google-github-actions/setup-gcloud@v0'
-#
-#      - name: 'Use gcloud CLI'
-#        run: 'gcloud info'
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.MERINGUE_UPLOAD_CREDENTIALS }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v0'
+
+      - name: 'Use gcloud CLI'
+        run: 'gcloud info'

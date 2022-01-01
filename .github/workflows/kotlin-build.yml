@@ -10,4 +10,4 @@ on:
 jobs:
 
   call-workflow:
-    uses: sprintf/lemon-pi-meringue/.github/workflows/base-build.yml@main
+    uses: sprintf/lemon-pi-meringue/.github/workflows/base-build.yml@a5dec4e10834339dd03e74db67dbe9ff84024812

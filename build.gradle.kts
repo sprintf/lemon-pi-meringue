@@ -52,7 +52,7 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("io.grpc:grpc-testing:${grpcVersion}")
 	testImplementation("net.devh:grpc-client-spring-boot-starter:2.13.0.RELEASE")
-
+	testImplementation("io.mockk:mockk:1.12.2")
 }
 
 dependencyManagement {

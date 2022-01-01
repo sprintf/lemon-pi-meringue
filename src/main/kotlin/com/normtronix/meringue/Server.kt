@@ -14,9 +14,9 @@ import java.time.Instant
 @GrpcService(interceptors = [ContextInterceptor::class, ServerSecurityInterceptor::class])
 class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler {
 
-    // map of trackId -> pitId -> ChannelAndKey<LemonPi.ToPitMessage>
+    // map of trackCode -> pitId -> ChannelAndKey<LemonPi.ToPitMessage>
     val toPitIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToPitMessage>>> = mutableMapOf()
-    // map of trackId -> pitId -> ChannelAndKey<LemonPi.ToCarMessage>
+    // map of trackCode -> pitId -> ChannelAndKey<LemonPi.ToCarMessage>
     val toCarIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToCarMessage>>> = mutableMapOf()
 
     // sequence number for sends emanating from here
@@ -33,7 +33,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
 
     override suspend fun sendMessageFromCar(request: LemonPi.ToPitMessage): Empty {
         val requestDetails = requestor.get()
-        val currentTrack = requestDetails.trackId
+        val currentTrack = requestDetails.trackCode
         val currentCar = requestDetails.carNum
         val currentKey = requestDetails.key
         // todo : make sure that the car is the one sending from itself
@@ -44,7 +44,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
 
     override suspend fun sendMessageFromPits(request: LemonPi.ToCarMessage): Empty {
         val requestDetails = requestor.get()
-        val currentTrack = requestDetails.trackId
+        val currentTrack = requestDetails.trackCode
         val currentKey = requestDetails.key
         val targetCar = extractTargetCar(request)
         log.info("pit ${currentTrack}/${requestDetails.carNum} sending message to $targetCar")
@@ -54,7 +54,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
 
     override fun receivePitMessages(request: LemonPi.CarNumber): Flow<LemonPi.ToCarMessage> {
         val requestDetails = requestor.get()
-        val currentTrack = requestDetails.trackId
+        val currentTrack = requestDetails.trackCode
         val currentKey = requestDetails.key
         log.info("receiving pit messages for ${currentTrack}/${request.carNumber}")
         return getSendChannel(currentTrack, request.carNumber, currentKey, toCarIndex).consumeAsFlow()
@@ -62,7 +62,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
 
     override fun receiveCarMessages(request: LemonPi.CarNumber): Flow<LemonPi.ToPitMessage> {
         val requestDetails = requestor.get()
-        val currentTrack = requestDetails.trackId
+        val currentTrack = requestDetails.trackCode
         val currentKey = requestDetails.key
         log.info("receiving car messages for ${currentTrack}/${request.carNumber}")
         return getSendChannel(currentTrack, request.carNumber, currentKey, toPitIndex).consumeAsFlow()
@@ -115,13 +115,22 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
     /*
      * get all the connected cars at a track .. useful for sending out yellow flags
      */
-    private fun getConnectedCarChannels(trackId: String) :List<Channel<LemonPi.ToCarMessage>> {
-        val cars = toCarIndex.get(trackId) ?: return emptyList()
+    private fun getConnectedCarChannels(trackCode: String) :List<Channel<LemonPi.ToCarMessage>> {
+        val cars = toCarIndex.get(trackCode) ?: return emptyList()
         return cars.values.filter {
             !it.channel.isClosedForSend
         }.map{
             it.channel
         }.toList()
+    }
+
+    internal fun getConnectedCarNumbers(trackCode: String) :Set<String> {
+        val cars = toCarIndex.get(trackCode) ?: return emptySet()
+        return cars.values.filter {
+            !it.channel.isClosedForSend
+        }.map {
+            it.key
+        }.toSet()
     }
 
     // test only
@@ -139,7 +148,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
     override suspend fun handleEvent(e: Event) {
         when (e) {
             is RaceStatusEvent -> {
-                getConnectedCarChannels("trackId").forEach {
+                getConnectedCarChannels(e.trackCode).forEach {
                     val flagStatus = LemonPi.RaceFlagStatus.valueOf(e.flagStatus)
                     val msg = LemonPi.ToCarMessage.newBuilder().raceStatusBuilder
                         .setSender("meringue")

@@ -72,6 +72,6 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
     }
 }
 
-open class RequestDetails(val trackId: String,
+open class RequestDetails(val trackCode: String,
                           val carNum: String,
                           val key: String)

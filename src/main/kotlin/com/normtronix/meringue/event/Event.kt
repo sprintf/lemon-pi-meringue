@@ -13,16 +13,27 @@ interface EventHandler {
 class Events {
 
     companion object {
-        val registry: MutableMap<Any, MutableList<EventHandler>> = mutableMapOf()
+        val registry: MutableMap<Any, MutableList<HandlerAndFilter>> = mutableMapOf()
 
-        fun register(clazz: Any, handler: EventHandler) {
+        /**
+         * Register to hear about a type of event when it is emitted.
+         * Callers should do this in their init { } block so it occurs only
+         * once.
+         * Optionally a filter can be provided in order to only call back on
+         *   more specific events
+         */
+        fun register(clazz: Any,
+                     handler: EventHandler,
+                     filter: (Event) -> Boolean = { true }) {
             if (!registry.containsKey(clazz)) {
-                registry[clazz] = mutableListOf(handler)
+                registry[clazz] = mutableListOf(HandlerAndFilter(handler, filter))
             } else {
-                registry[clazz]?.add(handler)
+                registry[clazz]?.add(HandlerAndFilter(handler, filter))
             }
         }
     }
+
+    data class HandlerAndFilter(val handler: EventHandler, val filter: (Event) -> Boolean)
 }
 
 open class Event {
@@ -34,12 +45,13 @@ open class Event {
         val handlers = Events.registry[this.javaClass]
         coroutineScope() {
             handlers?.forEach {
-                launch {
-                    it.handleEvent(event)
+                if (it.filter(event)) {
+                    launch {
+                        it.handler.handleEvent(event)
+                    }
                 }
             }
         }
-
     }
 
     companion object {
@@ -47,14 +59,15 @@ open class Event {
     }
 }
 
-class RaceStatusEvent(val flagStatus: String) :Event() {
+class RaceStatusEvent(val trackCode: String, val flagStatus: String) :Event() {
 
     override fun toString(): String {
-        return "RaceStatusEvent : $flagStatus"
+        return "RaceStatusEvent : $flagStatus ($trackCode)"
     }
 }
 
 class LapCompletedEvent(
+    val trackCode: String,
     val carNumber: String,
     val lapCount: Int,
     val position: Int,
@@ -66,6 +79,16 @@ class LapCompletedEvent(
 
     override fun toString(): String {
         return "LapCompletedEvent : $carNumber lap=$lapCount position=$position/$positionInClass ahead=$ahead by $gap"
+    }
+}
+
+class CarConnectedEvent(
+    val trackCode: String,
+    val carNumber: String,
+) : Event() {
+
+    override fun toString(): String {
+        return "CarConnectedEvent : $carNumber ($trackCode)"
     }
 }
 

@@ -11,9 +11,22 @@ internal class EventsTest {
         val h = TestHandler()
         Events.register(RaceStatusEvent::class.java, h)
         runBlocking {
-            RaceStatusEvent("red").emit()
+            RaceStatusEvent("thil","red").emit()
         }
         assertEquals(1, h.calledCount)
+    }
+
+    @Test
+    fun testFiltering() {
+        val h = TestHandler()
+        Events.register(RaceStatusEvent::class.java, h,
+            filter={it is RaceStatusEvent && it.trackCode == "t-1"} )
+        runBlocking {
+            RaceStatusEvent("t-2","red").emit()
+            assertEquals(0, h.calledCount)
+            RaceStatusEvent("t-1","black").emit()
+            assertEquals(1, h.calledCount)
+        }
     }
 
     internal class TestHandler() : EventHandler {

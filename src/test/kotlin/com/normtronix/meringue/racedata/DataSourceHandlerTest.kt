@@ -7,7 +7,7 @@ internal class DataSourceHandlerTest {
 
     @Test
     fun testTimeParsing() {
-        val ds = DataSourceHandler(RaceOrder(), listOf())
+        val ds = DataSourceHandler(RaceOrder(), "thil", setOf())
         assertEquals(135.0, ds.convertToSeconds("00:02:15"))
         assertEquals(3735.0, ds.convertToSeconds("01:02:15"))
         assertEquals(135.999, ds.convertToSeconds("00:02:15.999"))

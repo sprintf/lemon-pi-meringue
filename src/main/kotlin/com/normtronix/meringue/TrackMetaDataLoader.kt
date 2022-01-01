@@ -6,11 +6,14 @@ import org.springframework.stereotype.Component
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.Constructor
 import java.net.URL
+import java.util.stream.Collectors
 
 @Component
 class TrackMetaDataLoader {
 
     val trackCodes = mutableSetOf<String>()
+    val trackNameMap = mutableMapOf<String, String>()
+    var tracks = listOf<Track>()
 
     init {
         loadData()
@@ -20,12 +23,30 @@ class TrackMetaDataLoader {
         return trackCodes.contains(code)
     }
 
+    fun validateTrackCode(code: String): Unit {
+        if (!trackCodes.contains(code)) {
+            throw InvalidTrackCode()
+        }
+    }
+
+    fun codeToName(code: String): String {
+        return trackNameMap[code] ?: "unknown"
+    }
+
+    fun listTracks(): List<Track> {
+        return tracks
+    }
+
     private fun loadData() {
         // https://storage.googleapis.com/perplexus/public/tracks.yaml
         log.info("loading track data")
         val yaml = URL("https://storage.googleapis.com/perplexus/public/tracks.yaml").readText()
-        val tracks: Tracks = Yaml(Constructor(Tracks::class.java)).load(yaml)
-        tracks.tracks.stream().forEach { trackCodes.add(it.code) }
+        val trackList: Tracks = Yaml(Constructor(Tracks::class.java)).load(yaml)
+        trackList.tracks.stream().forEach { trackCodes.add(it.code) }
+        this.tracks = trackList.tracks.stream().collect(Collectors.toList())
+        trackList.tracks.stream().forEach {
+            trackNameMap[it.code] = it.name
+        }
         log.info("finished loading track data")
     }
 
@@ -53,3 +74,5 @@ class TrackMetaDataLoader {
         val log: Logger = LoggerFactory.getLogger(TrackMetaDataLoader::class.java)
     }
 }
+
+class InvalidTrackCode(): Exception()

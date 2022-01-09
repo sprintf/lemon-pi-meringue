@@ -78,7 +78,7 @@ internal class AdminServiceTest {
                 .build()
             val result = admin.connectToRaceData(request)
             assertEquals("thil:12345", result.handle)
-            assertEquals("Thunderhill", result.name)
+            assertEquals("Thunderhill", result.trackName)
             assertFalse(result.running)
             println(result)
         }
@@ -94,6 +94,7 @@ internal class AdminServiceTest {
     // uncomment the
     // @Test
     fun manualTest() {
+        val runTimeSeconds = 100
         val admin = AdminService()
         admin.lemonPiService = Server()
         admin.trackMetaData = TrackMetaDataLoader()
@@ -105,23 +106,22 @@ internal class AdminServiceTest {
             // connect to a real race
             val request = MeringueAdmin.ConnectToRaceDataRequest.newBuilder()
                 .setProvider(MeringueAdmin.RaceDataProvider.PROVIDER_RM)
-                .setProviderId("37872")
+                .setProviderId("37820") // 37820 or 37872
                 .setTrackCode("lgna")
                 .build()
 
             coroutineScope {
                 launch {
-                    val connection = admin.connectToRaceData(request)
-                    println(connection)
+                    admin.connectToRaceData(request)
                 }
                 launch {
-                    delay(10000)
+                    delay(runTimeSeconds * 1000L)
                     current = admin.listRaceDataConnections(Empty.getDefaultInstance())
                     assertEquals(1, current.responseCount)
                     println(current.getResponse(0))
                 }
                 launch {
-                    delay(11000)
+                    delay((runTimeSeconds + 1) * 1000L)
                     val cancelRequest = MeringueAdmin.RaceDataConnectionRequest.newBuilder()
                         .setHandle(current.getResponse(0).handle)
                         .build()

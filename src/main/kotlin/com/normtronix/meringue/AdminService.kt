@@ -6,9 +6,11 @@ import com.normtronix.meringue.racedata.DataSource1
 import com.normtronix.meringue.racedata.DataSourceHandler
 import com.normtronix.meringue.racedata.InvalidRaceId
 import com.normtronix.meringue.racedata.RaceOrder
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.newSingleThreadContext
+import net.devh.boot.grpc.server.advice.GrpcAdvice
 import net.devh.boot.grpc.server.advice.GrpcExceptionHandler
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
@@ -20,6 +22,7 @@ import org.springframework.security.authentication.BadCredentialsException
 import java.io.IOException
 
 @GrpcService(interceptors = [AdminSecurityInterceptor::class])
+@GrpcAdvice
 @Configuration
 class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
 
@@ -79,7 +82,8 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
         val key = Handle(request.trackCode, request.providerId)
         if (activeMap.containsKey(key) && activeMap[key]!!.isActive) {
             return MeringueAdmin.RaceDataConnectionResponse.newBuilder()
-                .setName(getTrackName(request.trackCode))
+                .setTrackName(getTrackName(request.trackCode))
+                .setTrackCode(request.trackCode)
                 .setHandle(key.toString())
                 .setRunning(true)
                 .build()
@@ -87,18 +91,14 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
 
         val raceDataSource = raceDataSourceFactoryFn(request.providerId)
         val streamUrl = raceDataSource.connect()
-        coroutineScope {
-            val xyv = launch {
-                try {
-                    raceDataSource.stream(streamUrl, DataSourceHandler(RaceOrder(), request.trackCode, getConnectedCars(request.trackCode)))
-                } finally {
-                    log.warn("race data stream finished for $key / $streamUrl")
-                }
-            }
-            activeMap[key] = xyv
+        val jobId = GlobalScope.launch(newSingleThreadContext("thread-${request.trackCode}")) {
+            raceDataSource.stream(streamUrl, DataSourceHandler(RaceOrder(), request.trackCode, getConnectedCars(request.trackCode)))
         }
+        activeMap[key] = jobId
+        log.info("returning with result for race data stream $key")
         return MeringueAdmin.RaceDataConnectionResponse.newBuilder()
-            .setName(getTrackName(request.trackCode))
+            .setTrackName(getTrackName(request.trackCode))
+            .setTrackCode(request.trackCode)
             .setHandle(key.toString())
             .setRunning(activeMap[key]?.isActive ?: false)
             .build()
@@ -120,7 +120,8 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
         val bldr = MeringueAdmin.RaceDataConnectionsResponse.newBuilder()
         activeMap.forEach {
             bldr.addResponseBuilder()
-                .setName(getTrackName(it.key.trackCode))
+                .setTrackName(getTrackName(it.key.trackCode))
+                .setTrackCode(it.key.trackCode)
                 .setHandle(it.key.toString())
                 .setRunning(it.value.isActive)
         }

@@ -12,8 +12,8 @@ class AuthService {
 
     fun createTokenForUser(username: String): String {
         val token = UUID.randomUUID().toString()
-        tokenToUserMap[username] = token
-        userToTokenMap[token] = username
+        tokenToUserMap[token] = username
+        userToTokenMap[username] = token
         return token
     }
 

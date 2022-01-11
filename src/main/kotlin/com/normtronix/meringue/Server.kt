@@ -16,7 +16,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
 
     // map of trackCode -> pitId -> ChannelAndKey<LemonPi.ToPitMessage>
     val toPitIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToPitMessage>>> = mutableMapOf()
-    // map of trackCode -> pitId -> ChannelAndKey<LemonPi.ToCarMessage>
+    // map of trackCode -> carNumber -> ChannelAndKey<LemonPi.ToCarMessage>
     val toCarIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToCarMessage>>> = mutableMapOf()
 
     // sequence number for sends emanating from here
@@ -65,6 +65,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
         val currentTrack = requestDetails.trackCode
         val currentKey = requestDetails.key
         log.info("receiving car messages for ${currentTrack}/${request.carNumber}")
+        CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
         return getSendChannel(currentTrack, request.carNumber, currentKey, toPitIndex).consumeAsFlow()
     }
 
@@ -83,7 +84,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
             return result.channel
         } else {
             val channelAndKey = index[currentTrack]?.get(currentCar)
-            if (channelAndKey != null && channelAndKey.key != currentKey) {
+            if (channelAndKey != null && channelAndKey.radioKey != currentKey) {
                 throw MismatchedKeyException()
             }
             // the channel is already here ... but it may be toast
@@ -126,8 +127,8 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
 
     internal fun getConnectedCarNumbers(trackCode: String) :Set<String> {
         val cars = toCarIndex.get(trackCode) ?: return emptySet()
-        return cars.values.filter {
-            !it.channel.isClosedForSend
+        return cars.entries.filter {
+            !it.value.channel.isClosedForSend
         }.map {
             it.key
         }.toSet()
@@ -139,7 +140,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
         toCarIndex.values.forEach { it.values.forEach { it.channel.close() }}
     }
 
-    data class ChannelAndKey<T>(val channel: Channel<T>, val key:String)
+    data class ChannelAndKey<T>(val channel: Channel<T>, val radioKey:String)
 
     companion object {
         val log: Logger = LoggerFactory.getLogger(Server::class.java)
@@ -148,8 +149,8 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
     override suspend fun handleEvent(e: Event) {
         when (e) {
             is RaceStatusEvent -> {
+                val flagStatus = LemonPi.RaceFlagStatus.valueOf(e.flagStatus.trim().uppercase())
                 getConnectedCarChannels(e.trackCode).forEach {
-                    val flagStatus = LemonPi.RaceFlagStatus.valueOf(e.flagStatus)
                     val msg = LemonPi.ToCarMessage.newBuilder().raceStatusBuilder
                         .setSender("meringue")
                         .setTimestamp(Instant.now().epochSecond.toInt())
@@ -179,7 +180,12 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
                     .setPositionInClass(e.positionInClass)
                     .setCarAhead(aheadMsg)
                     .build()
-                // todo : lookup connected car channels (but do not create them)
+                getConnectedCarNumbers(e.trackCode).forEach {
+                    if (it == msg.carNumber || it == msg.carAhead.carNumber) {
+                        toCarIndex[e.trackCode]?.get(it)?.channel?.send(
+                            LemonPi.ToCarMessage.newBuilder().mergeRacePosition(msg).build())
+                    }
+                }
             }
         }
     }

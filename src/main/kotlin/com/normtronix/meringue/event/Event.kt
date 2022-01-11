@@ -1,5 +1,7 @@
 package com.normtronix.meringue.event
 
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.slf4j.Logger
@@ -52,6 +54,10 @@ open class Event {
                 }
             }
         }
+    }
+
+    fun emitAsync() {
+        GlobalScope.async { emit() }
     }
 
     companion object {

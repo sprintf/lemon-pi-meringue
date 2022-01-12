@@ -56,7 +56,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
         val requestDetails = requestor.get()
         val currentTrack = requestDetails.trackCode
         val currentKey = requestDetails.key
-        log.info("receiving pit messages for ${currentTrack}/${request.carNumber}")
+        log.info("receiving messages for car ${request.carNumber} @ $currentTrack")
         return getSendChannel(currentTrack, request.carNumber, currentKey, toCarIndex).consumeAsFlow()
     }
 
@@ -64,7 +64,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
         val requestDetails = requestor.get()
         val currentTrack = requestDetails.trackCode
         val currentKey = requestDetails.key
-        log.info("receiving car messages for ${currentTrack}/${request.carNumber}")
+        log.info("receiving car messages for ${request.carNumber} @ $currentTrack")
         CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
         return getSendChannel(currentTrack, request.carNumber, currentKey, toPitIndex).consumeAsFlow()
     }
@@ -79,6 +79,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
             index[currentTrack] = mutableMapOf<String, ChannelAndKey<T>>()
         }
         if (!index[currentTrack]?.containsKey(currentCar)!!) {
+            log.info("new channel created for recipient $currentCar")
             val result = ChannelAndKey(Channel<T>(10), currentKey)
             index[currentTrack]?.set(currentCar, result)
             return result.channel
@@ -89,6 +90,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
             }
             // the channel is already here ... but it may be toast
             if (channelAndKey == null || channelAndKey.channel.isClosedForSend) {
+                log.info("replacement channel created for recipient $currentCar")
                 val result = ChannelAndKey(Channel<T>(10), currentKey)
                 index[currentTrack]?.set(currentCar, result)
                 return result.channel
@@ -147,8 +149,12 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
     }
 
     override suspend fun handleEvent(e: Event) {
+        log.info("handling event $e")
         when (e) {
             is RaceStatusEvent -> {
+                if (e.flagStatus.isNullOrEmpty()) {
+                    return
+                }
                 val flagStatus = LemonPi.RaceFlagStatus.valueOf(e.flagStatus.trim().uppercase())
                 getConnectedCarChannels(e.trackCode).forEach {
                     val msg = LemonPi.ToCarMessage.newBuilder().raceStatusBuilder
@@ -158,6 +164,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
                         .setFlagStatus(flagStatus)
                         .build()
                     it.send(LemonPi.ToCarMessage.newBuilder().mergeRaceStatus(msg).build())
+                    log.info("sent flag message to some or other car")
                 }
             }
             is LapCompletedEvent -> {
@@ -184,6 +191,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
                     if (it == msg.carNumber || it == msg.carAhead.carNumber) {
                         toCarIndex[e.trackCode]?.get(it)?.channel?.send(
                             LemonPi.ToCarMessage.newBuilder().mergeRacePosition(msg).build())
+                        log.info("sent race position message to $it")
                     }
                 }
             }

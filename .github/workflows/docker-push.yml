@@ -41,5 +41,5 @@ jobs:
         run: cd envoy && docker build -t us.gcr.io/meringue/envoy:GITHUB_SHA .
 
       - name: push envoy docker image
-        run: docker push us.gcr.io/meringue/envoy:GITHUB_SHA .
+        run: docker push us.gcr.io/meringue/envoy:GITHUB_SHA
 

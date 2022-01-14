@@ -51,5 +51,7 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
-                      address: meringue-v2-srmt5evhka-uc.a.run.app
-                      port_value: 443
+                      # for cloudrun, we use runsd (see Dockerfile) which allows friendly names
+                      # for smarter routing.
+                      address: meringue-v2
+                      port_value: 9090

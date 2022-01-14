@@ -37,3 +37,9 @@ jobs:
       - name: push docker image
         run: docker push us.gcr.io/meringue/meringue:$GITHUB_SHA
 
+      - name: build envoy docker image
+        run: cd envoy && docker build -t us.gcr.io/meringue/envoy:GITHUB_SHA .
+
+      - name: push envoy docker image
+        run: docker push us.gcr.io/meringue/envoy:GITHUB_SHA .
+

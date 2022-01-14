@@ -3,7 +3,6 @@ package com.normtronix.meringue.racedata
 import com.normtronix.meringue.event.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.time.Instant
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -13,8 +12,9 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
     private var raceFlag = ""
 
     init {
-        Events.register(CarConnectedEvent::class, this,
+        Events.register(CarConnectedEvent::class.java, this,
             filter={it is CarConnectedEvent && it.trackCode == this.trackCode} )
+        log.info("filtering for cars $targetCars")
     }
 
     suspend fun handleWebSocketMessage(rawLine: String) {
@@ -34,7 +34,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                         }
                         "\$F" -> {
                             if (bits.size == 6) {
-                                val newFlag = bits[5].trim('"')
+                                val newFlag = bits[5].trim('"',' ')
                                 if (raceFlag != newFlag) {
                                     raceFlag = newFlag
                                     RaceStatusEvent(trackCode, newFlag).emit()
@@ -45,8 +45,10 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                         "\$G" -> {
                             if (bits.size == 5) {
                                 val carNumber = bits[2].trim('"')
-                                val lapsCompleted = bits[3].toIntOrNull()
-                                leaderboard.updatePosition(carNumber, bits[1].toInt(), lapsCompleted)
+                                // if we get updates saying they completed null laps then ignore it
+                                bits[3].toIntOrNull()?.let {
+                                    leaderboard.updatePosition(carNumber, bits[1].toInt(), it, convertToSeconds(bits[4]))
+                                }
                             }
                         }
                         "\$H" -> {
@@ -61,12 +63,6 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                                 leaderboard.updateLastLap(carNumber, convertToSeconds(bits[2]))
                             }
                         }
-                        "\$RMLT" -> {
-                            if (bits.size == 3) {
-                                val carNumber = bits[1].trim('"')
-                                leaderboard.updateLapTimestamp(carNumber, Instant.ofEpochMilli(bits[2].toLong()))
-                            }
-                        }
                         "\$RMHL" -> {
                             if (bits.size == 7) {
                                 val carNumber = bits[1].trim('"')
@@ -75,7 +71,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                                 val position = bits[3].trim('"').toInt()
                                 val lastLapTime = convertToSeconds(bits[4])
                                 val flag = bits[5].trim('"', ' ')
-                                leaderboard.updatePosition(carNumber, position, laps)
+                                leaderboard.updatePosition(carNumber, position, laps, convertToSeconds(bits[6]))
                                 if (carNumber in targetCars) {
                                     val ahead = getCarAhead(thisCar)
                                     LapCompletedEvent(
@@ -161,13 +157,15 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                 (timeAmount.nano / 1000000000.0)
     }
 
+    override suspend fun handleEvent(e: Event) {
+        if (e is CarConnectedEvent) {
+            targetCars.add(e.carNumber)
+            log.info("registering car ${e.carNumber} filtering for cars $targetCars")
+        }
+    }
+
     companion object {
         val log: Logger = LoggerFactory.getLogger(DataSourceHandler::class.java)
     }
 
-    override suspend fun handleEvent(e: Event) {
-        if (e is CarConnectedEvent) {
-            targetCars.add(e.carNumber)
-        }
-    }
 }

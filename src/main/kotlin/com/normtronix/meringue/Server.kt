@@ -57,6 +57,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
         val currentTrack = requestDetails.trackCode
         val currentKey = requestDetails.key
         log.info("receiving messages for car ${request.carNumber} @ $currentTrack")
+        CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
         return getSendChannel(currentTrack, request.carNumber, currentKey, toCarIndex).consumeAsFlow()
     }
 
@@ -65,7 +66,8 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
         val currentTrack = requestDetails.trackCode
         val currentKey = requestDetails.key
         log.info("receiving car messages for ${request.carNumber} @ $currentTrack")
-        CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
+        // todo : this needs more thought
+        // CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
         return getSendChannel(currentTrack, request.carNumber, currentKey, toPitIndex).consumeAsFlow()
     }
 

@@ -15,7 +15,7 @@ interface EventHandler {
 class Events {
 
     companion object {
-        val registry: MutableMap<Any, MutableList<HandlerAndFilter>> = mutableMapOf()
+        val registry: MutableMap<Class<*>, MutableList<HandlerAndFilter>> = mutableMapOf()
 
         /**
          * Register to hear about a type of event when it is emitted.
@@ -24,7 +24,7 @@ class Events {
          * Optionally a filter can be provided in order to only call back on
          *   more specific events
          */
-        fun register(clazz: Any,
+        fun register(clazz: Class<*>,
                      handler: EventHandler,
                      filter: (Event) -> Boolean = { true }) {
             if (!registry.containsKey(clazz)) {

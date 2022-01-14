@@ -5,6 +5,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.time.Instant
+import java.util.stream.Collectors
 
 enum class PositionEnum(val value:Int) {
     OVERALL(1),
@@ -60,7 +61,7 @@ class CarPosition(val carNumber:String,
 
         var secondsDiff:Long = -1
         if (carAhead.lastLapTimestamp != null && this.lastLapTimestamp != null) {
-            secondsDiff = Duration.between(this.lastLapTimestamp, carAhead.lastLapTimestamp).toSeconds()
+            secondsDiff = Duration.between(carAhead.lastLapTimestamp, this.lastLapTimestamp).toSeconds()
         }
 
         if (carAhead.lapsCompleted >= 0 && this.lapsCompleted >= 0) {
@@ -69,9 +70,9 @@ class CarPosition(val carNumber:String,
                 // if it's been more than 5 minutes between one of these two cars
                 // crossed the line, then one or both are pitted
                 return if (secondsDiff < 300) {
-                    "{} L".format(lapDiff)
+                    "$lapDiff L"
                 } else {
-                    "{} L(p)".format(lapDiff)
+                    "$lapDiff L(p)"
                 }
             }
         }
@@ -80,8 +81,7 @@ class CarPosition(val carNumber:String,
             return if (secondsDiff >= 60) {
                 val mDiff = secondsDiff / 60
                 val sDiff = secondsDiff % 60
-                // todo : pad seconds
-                "${mDiff}:${sDiff}"
+                "${mDiff}:%02d".format(sDiff)
             } else {
                 "${secondsDiff}s"
             }
@@ -127,17 +127,15 @@ class RaceOrder {
         return classLookup.size > 1
     }
 
-    fun size(): Int {
-        return numberLookup.size
-    }
-
-    fun updatePosition(carNumber: String, position: Int, lapCount: Int?) {
+    fun updatePosition(carNumber: String, position: Int, lapCount: Int, timestamp: Double) {
+        if (lapCount == 0) {
+            return
+        }
         val car = numberLookup[carNumber] ?: addCar(CarPosition(carNumber, "unknown"))
         car.let {
             car.position = position
-            lapCount?.let {
-                car.lapsCompleted = lapCount
-            }
+            car.lapsCompleted = lapCount
+            car.lastLapTimestamp = Instant.ofEpochMilli((timestamp * 1000).toLong())
         }
         adjustPosition(car)
         cleanup()
@@ -154,12 +152,6 @@ class RaceOrder {
         numberLookup[carNumber]?.let {
             it.fastestLap = fastestLapNumber
             it.fastestLapTime = fastestLapTime
-        }
-    }
-
-    fun updateLapTimestamp(carNumber: String, timestamp: Instant) {
-        numberLookup[carNumber]?.let {
-            it.lastLapTimestamp = timestamp
         }
     }
 
@@ -220,6 +212,10 @@ class RaceOrder {
 
         if (formerBehind != null) {
             formerBehind.carInFront = formerInFront
+            // there's an odd corner case where we just handed over the lead
+            if (formerInFront == null) {
+                first = formerBehind
+            }
         }
 
         // renumber everything
@@ -228,10 +224,12 @@ class RaceOrder {
         checkIntegrity()
     }
 
+
+
     private fun findInsertionPoint(car: CarPosition) : CarPosition? {
         var scan = car.carInFront
         var iterations = 0
-        while( scan != null && (scan.lapsCompleted < car.lapsCompleted || scan.position == NOT_STARTED)) {
+        while( scan != null && (comparePositions(car, scan) > 0 || scan.position == NOT_STARTED)) {
             scan = scan.carInFront
             iterations += 1
         }
@@ -243,7 +241,7 @@ class RaceOrder {
         if (iterations == 0) {
             var prev = car
             scan = car.carBehind
-            while( scan != null && scan.lapsCompleted >= car.lapsCompleted && scan.position != NOT_STARTED) {
+            while( scan != null && comparePositions(scan, car) > 0) {
                 prev = scan
                 scan = scan.carBehind
             }
@@ -283,6 +281,27 @@ class RaceOrder {
 
     internal fun checkIntegrity() {
         val expectedSize = this.numberLookup.size
+
+        if (expectedSize == 0) {
+            return
+        }
+
+        // make sure only one entry is the leader
+        this.numberLookup.values.stream()
+            .filter { it.carInFront == null && it != first }
+            .forEach {
+                myAssert(false, "miswired car ${it.carNumber} in P ${it.position} has no carInFront")
+            }
+
+        // there should only be a single car that has nothing behind it
+        val lastCars = this.numberLookup.values.stream()
+            .filter { it.carBehind == null }
+            .collect(Collectors.toList())
+        myAssert(
+            lastCars.size == 1,
+            "expected only one tail car but found more ${lastCars}"
+        )
+
         // scan from front to back
         var scan = this.first
         var last: CarPosition? = null
@@ -321,13 +340,16 @@ class RaceOrder {
                     foundNotStarted = true
                 }
                 if (foundNotStarted) {
-                    myAssert( scan.position == NOT_STARTED, "found race behind NOT_STARTED ")
+                    myAssert( scan.position == NOT_STARTED, "found racer behind NOT_STARTED ")
                 } else {
                     myAssert(scan.position == lastPosition + 1, "positions not ordered")
                     lastPosition = scan.position
                     val carAhead = scan.carInFront
                     if (carAhead != null) {
-                        myAssert(carAhead.lapsCompleted >= scan.lapsCompleted, "distance not ordered")
+                        myAssert(
+                            comparePositions(carAhead, scan) >= 0,
+                            "distance not ordered ${carAhead.carNumber} completed ${carAhead.lapsCompleted} stamp = ${carAhead.lastLapTimestamp}\n" +
+                        "car behind = ${scan.carNumber} completed ${scan.lapsCompleted} in P${scan.position} stamp = ${scan.lastLapTimestamp}")
                     }
                 }
 
@@ -339,7 +361,30 @@ class RaceOrder {
     companion object {
         val log: Logger = LoggerFactory.getLogger(RaceOrder::class.java)
 
-        private fun myAssert(exp: Boolean, msg: String?) {
+        /**
+         * Compare two cars. return positive integer if car1 is ahead of car2
+         * Return negative integer if car2 is ahead of car1
+         * Return zero if they are neck and neck
+         */
+        internal fun comparePositions(car1: CarPosition, car2: CarPosition) : Long {
+            if (car1.lapsCompleted == 0 && car2.lapsCompleted == 0) {
+                return car1.carNumber.compareTo(car2.carNumber).toLong()
+            }
+            val lapDiff = car1.lapsCompleted - car2.lapsCompleted
+            if (lapDiff != 0) {
+                return lapDiff.toLong()
+            }
+            if (car1.lastLapTimestamp == null) {
+                return -1L
+            }
+            if (car2.lastLapTimestamp == null) {
+                return 1L
+            }
+            val timestampDiff = Duration.between(car1.lastLapTimestamp, car2.lastLapTimestamp)
+            return timestampDiff.toMillis()
+        }
+
+        internal fun myAssert(exp: Boolean, msg: String?) {
             if (!exp) {
                 throw RuntimeException(msg)
             }

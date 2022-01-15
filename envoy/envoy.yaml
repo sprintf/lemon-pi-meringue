@@ -24,6 +24,7 @@ static_resources:
                         - match: { prefix: "/" }
                           route:
                             cluster: meringue
+                            auto_host_rewrite: true
                             max_stream_duration:
                               grpc_timeout_header_max: 0s
                       cors:
@@ -34,18 +35,21 @@ static_resources:
                         max_age: "1728000"
                         expose_headers: id,token,grpc-status,grpc-message
                 http_filters:
-                  - name: envoy.filters.http.grpc_web
                   - name: envoy.filters.http.cors
+                  - name: envoy.filters.http.grpc_web
                   - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
   clusters:
     - name: meringue
-      connect_timeout: 0.25s
-      type: logical_dns
+      connect_timeout: 20s
+      type: strict_dns
       http2_protocol_options: {}
       lb_policy: round_robin
+      dns_refresh_rate: 60s
       # win/mac hosts: Use address: host.docker.internal instead of address: localhost in the line below
       load_assignment:
-        cluster_name: cluster_0
+        cluster_name: meringue
         endpoints:
           - lb_endpoints:
               - endpoint:
@@ -53,14 +57,16 @@ static_resources:
                     socket_address:
                       address: meringue-v2-srmt5evhka-uc.a.run.app
                       port_value: 443
+      dns_lookup_family: V4_ONLY
       transport_socket:
         name: envoy.transport_sockets.tls
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
           sni: meringue-v2-srmt5evhka-uc.a.run.app
           common_tls_context:
+            alpn_protocols: h2
             validation_context:
-              match_subject_alt_names:
-                - exact: "*.a.run.app"
+#              match_subject_alt_names:
+#                - exact: "*.a.run.app"
               trusted_ca:
                 filename: /etc/ssl/certs/ca-certificates.crt

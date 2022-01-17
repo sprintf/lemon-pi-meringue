@@ -290,7 +290,7 @@ class RaceOrder {
         this.numberLookup.values.stream()
             .filter { it.carInFront == null && it != first }
             .forEach {
-                myAssert(false, "miswired car ${it.carNumber} in P ${it.position} has no carInFront")
+                myAssert(false, "mis-wired car ${it.carNumber} in P ${it.position} has no carInFront")
             }
 
         // there should only be a single car that has nothing behind it
@@ -299,7 +299,7 @@ class RaceOrder {
             .collect(Collectors.toList())
         myAssert(
             lastCars.size == 1,
-            "expected only one tail car but found more ${lastCars}"
+            "expected only one tail car but found more $lastCars"
         )
 
         // scan from front to back

@@ -1,7 +1,7 @@
 package com.normtronix.meringue.racedata
 
 import com.normtronix.meringue.LemonPi
-import com.normtronix.meringue.event.RaceStatusEvent
+import com.normtronix.meringue.event.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -19,12 +19,33 @@ internal class DataSourceHandlerTest {
         assertEquals(127.007, ds.convertToSeconds("00:02:07.007"))
     }
 
+    class TestHandler: EventHandler {
+
+        val callbackCount: MutableMap<String, Int> = mutableMapOf()
+
+        override suspend fun handleEvent(e: Event) {
+            if (e is LapCompletedEvent) {
+                callbackCount[e.carNumber] = callbackCount[e.carNumber]?.plus(1) ?: 1
+            }
+        }
+    }
+
     @Test
     fun parseFile() {
         val leaderboard = RaceOrder()
 
         val ds = DataSourceHandler(leaderboard, "thil", setOf())
         val fr = BufferedReader(FileReader("src/test/resources/test-file.dat"))
+
+        val th = TestHandler()
+
+        Events.register(LapCompletedEvent::class.java, th)
+
+        runBlocking {
+            ds.handleEvent(CarConnectedEvent("thil", "964"))
+            // we don't know about this car, so no callback
+            assertEquals(null, th.callbackCount["964"])
+        }
 
         fr.lines()
             .filter { it.isNotEmpty() }
@@ -42,10 +63,7 @@ internal class DataSourceHandlerTest {
         val car964 = leaderboard.lookup("964")
         println(car964?.gap(car964.getCarInFront(PositionEnum.OVERALL)))
 
-        println(leaderboard.getLeadCar()?.carNumber)
-        println(leaderboard.getLeadCar()?.carBehind?.carNumber)
-        println(leaderboard.getLeadCar()?.carBehind?.carBehind?.carNumber)
-        println(leaderboard.getLeadCar()?.carBehind?.carBehind?.carBehind?.carNumber)
+        assertEquals(28, th.callbackCount["964"])
     }
 
     @Test

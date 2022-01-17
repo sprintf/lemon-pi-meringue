@@ -1,6 +1,7 @@
 package com.normtronix.meringue.racedata
 
 import com.normtronix.meringue.event.*
+import kotlinx.coroutines.delay
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.LocalTime
@@ -21,6 +22,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
         try {
             val line = rawLine.trim()
             if (line.isNotEmpty()) {
+                log.trace("rcv >> $line")
                 val bits = line.split(",")
                 if (bits.size > 0) {
                     when (bits[0]) {
@@ -71,8 +73,9 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                                 val position = bits[3].trim('"').toInt()
                                 val lastLapTime = convertToSeconds(bits[4])
                                 val flag = bits[5].trim('"', ' ')
+                                log.debug("processing track:$trackCode car:$carNumber lap:$laps time:$lastLapTime")
                                 leaderboard.updatePosition(carNumber, position, laps, convertToSeconds(bits[6]))
-                                if (carNumber in targetCars) {
+                                if (targetCars.contains(carNumber)) {
                                     val ahead = getCarAhead(thisCar)
                                     LapCompletedEvent(
                                         trackCode,
@@ -90,7 +93,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                                     // it may be that this car is directly behind (in class or overall)
                                     val overallAhead = thisCar?.getCarInFront(PositionEnum.OVERALL)
                                     val aheadInClass = thisCar?.getCarInFront(PositionEnum.IN_CLASS)
-                                    if (overallAhead != null && overallAhead.carNumber in targetCars) {
+                                    if (overallAhead != null && targetCars.contains(overallAhead.carNumber)) {
                                         val gap = thisCar.gap(overallAhead)
                                         LapCompletedEvent(
                                             trackCode,
@@ -105,7 +108,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                                         ).emit()
                                         log.info("car following car of interest completed lap")
                                     }
-                                    else if (aheadInClass != null && aheadInClass.carNumber in targetCars) {
+                                    else if (aheadInClass != null && targetCars.contains(aheadInClass.carNumber)) {
                                         val gap = thisCar.gap(aheadInClass)
                                         LapCompletedEvent(
                                             trackCode,
@@ -161,6 +164,22 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
         if (e is CarConnectedEvent) {
             targetCars.add(e.carNumber)
             log.info("registering car ${e.carNumber} filtering for cars $targetCars")
+            val thisCar = leaderboard.lookup(e.carNumber)
+            thisCar?.let {
+                // wait a moment so the connection is there
+                delay(1000)
+                LapCompletedEvent(
+                    trackCode,
+                    thisCar.carNumber,
+                    thisCar.lapsCompleted,
+                    thisCar.position,
+                    positionInClass = thisCar.classPosition,
+                    ahead = thisCar.carInFront?.carNumber,
+                    gap = "-",
+                    thisCar.lastLapTime,
+                    raceFlag,
+                ).emit()
+            }
         }
     }
 

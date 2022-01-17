@@ -170,15 +170,10 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
                 }
             }
             is LapCompletedEvent -> {
-                val aheadMsg = when (e.ahead ) {
-                    null -> { null }
-                    else -> {
-                        LemonPi.Opponent.newBuilder()
-                            .setCarNumber(e.ahead)
-                            .setGapText(e.gap)
-                            .build()
-                    }
-                }
+                val aheadMsg = LemonPi.Opponent.newBuilder()
+                    .setCarNumber(e.ahead)
+                    .setGapText(e.gap)
+                    .build()
                 val msg = LemonPi.ToCarMessage.newBuilder().racePositionBuilder
                     .setSender("meringue")
                     .setTimestamp(Instant.now().epochSecond.toInt())

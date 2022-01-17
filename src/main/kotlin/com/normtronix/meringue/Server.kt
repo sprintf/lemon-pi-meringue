@@ -3,6 +3,7 @@ package com.normtronix.meringue
 import com.google.protobuf.Empty
 import com.normtronix.meringue.ContextInterceptor.Companion.requestor
 import com.normtronix.meringue.event.*
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import net.devh.boot.grpc.server.service.GrpcService
@@ -23,6 +24,9 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
     var seqNo = 1
 
     init {
+        CoroutineExceptionHandler { _, exception ->
+            log.warn("CoroutineExceptionHandler got $exception")
+        }
         Events.register(RaceStatusEvent::class.java, this)
         Events.register(LapCompletedEvent::class.java, this)
     }
@@ -170,8 +174,8 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
                 }
             }
             is LapCompletedEvent -> {
-                val aheadMsg = LemonPi.Opponent.newBuilder()
-                    .setCarNumber(e.ahead)
+                val ahead = LemonPi.Opponent.newBuilder()
+                    .setCarNumber(e.ahead ?: "")
                     .setGapText(e.gap)
                     .build()
                 val msg = LemonPi.ToCarMessage.newBuilder().racePositionBuilder
@@ -182,7 +186,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
                     .setLapCount(e.lapCount)
                     .setPosition(e.position)
                     .setPositionInClass(e.positionInClass)
-                    .setCarAhead(aheadMsg)
+                    .setCarAhead(ahead)
                     .build()
                 getConnectedCarNumbers(e.trackCode).forEach {
                     if (it == msg.carNumber || it == msg.carAhead.carNumber) {

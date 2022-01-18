@@ -2,11 +2,8 @@ package com.normtronix.meringue
 
 import com.google.protobuf.Empty
 import com.normtronix.meringue.event.RaceDisconnectEvent
+import com.normtronix.meringue.racedata.*
 import io.grpc.Status
-import com.normtronix.meringue.racedata.DataSource1
-import com.normtronix.meringue.racedata.DataSourceHandler
-import com.normtronix.meringue.racedata.InvalidRaceId
-import com.normtronix.meringue.racedata.RaceOrder
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -44,7 +41,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
     @Value("\${adminPassword}")
     lateinit var adminPassword:String
 
-    var raceDataSourceFactoryFn : (String) -> DataSource1 = fun(x:String) : DataSource1 { return DataSource1(x) }
+    var raceDataSourceFactoryFn : (String) -> DataSource2 = fun(x:String) : DataSource2 { return DataSource2(x) }
 
     override suspend fun ping(request: Empty): Empty {
         return Empty.getDefaultInstance()

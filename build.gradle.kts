@@ -33,6 +33,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-security")
+	implementation("org.springframework.boot:spring-boot-starter-websocket")
 	implementation("com.google.code.gson:gson:2.8.9")
 	implementation("io.ktor:ktor-client-websockets:$ktorVersion")
 	implementation("io.ktor:ktor-client-cio:$ktorVersion")

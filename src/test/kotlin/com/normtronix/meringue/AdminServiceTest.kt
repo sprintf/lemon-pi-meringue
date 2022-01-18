@@ -2,6 +2,7 @@ package com.normtronix.meringue
 
 import com.google.protobuf.Empty
 import com.normtronix.meringue.racedata.DataSource1
+import com.normtronix.meringue.racedata.DataSource2
 import com.normtronix.meringue.racedata.InvalidRaceId
 import io.mockk.coEvery
 import io.mockk.every
@@ -43,10 +44,10 @@ internal class AdminServiceTest {
         assertThrows<InvalidRaceId> {
             val admin = AdminService()
             mockTrackMetadata(admin)
-            val ds = DataSource1("12345")
+            val ds = DataSource2("12345")
             mockkObject(ds)
             every { ds.connect() } throws InvalidRaceId()
-            admin.raceDataSourceFactoryFn = fun(_: String): DataSource1 { return ds }
+            admin.raceDataSourceFactoryFn = fun(_: String): DataSource2 { return ds }
 
             runBlocking {
                 val request = MeringueAdmin.ConnectToRaceDataRequest.newBuilder()
@@ -64,11 +65,11 @@ internal class AdminServiceTest {
         val admin = AdminService()
         mockTrackMetadata(admin)
         admin.lemonPiService = Server()
-        val ds = DataSource1("12345")
+        val ds = DataSource2("12345")
         mockkObject(ds)
         every { ds.connect() } returns "wss://localhost:443/foo.json"
         coEvery { ds.stream("wss://localhost:443/foo.json", any()) } returns Unit
-        admin.raceDataSourceFactoryFn = fun(_: String): DataSource1 { return ds }
+        admin.raceDataSourceFactoryFn = fun(_: String): DataSource2 { return ds }
 
         runBlocking {
             val request = MeringueAdmin.ConnectToRaceDataRequest.newBuilder()

@@ -6,6 +6,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.stream.Collectors
 
 interface EventHandler {
 
@@ -32,6 +33,24 @@ class Events {
             } else {
                 registry[clazz]?.add(HandlerAndFilter(handler, filter))
             }
+        }
+
+        fun unregister(handler: EventHandler) {
+            // find all instances of datasource handler and remove them
+            registry.entries
+                .stream()
+                .forEach { outer ->
+                    val deletionList = outer.value.stream().map {
+                        if (it.handler == handler) {
+                            it
+                        } else {
+                            null
+                        }
+                    }.collect(Collectors.toList())
+                    deletionList.stream().forEach {
+                        outer.value.remove(it)
+                    }
+                }
         }
     }
 
@@ -95,6 +114,15 @@ class CarConnectedEvent(
 
     override fun toString(): String {
         return "CarConnectedEvent : $carNumber ($trackCode)"
+    }
+}
+
+class RaceDisconnectEvent(
+    val trackCode: String
+) : Event() {
+
+    override fun toString(): String {
+        return "RaceDisconnectedEvent : $trackCode"
     }
 }
 

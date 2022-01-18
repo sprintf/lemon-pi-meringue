@@ -1,6 +1,7 @@
 package com.normtronix.meringue
 
 import com.google.protobuf.Empty
+import com.normtronix.meringue.event.RaceDisconnectEvent
 import io.grpc.Status
 import com.normtronix.meringue.racedata.DataSource1
 import com.normtronix.meringue.racedata.DataSourceHandler
@@ -134,6 +135,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
         val handle = Handle.fromString(request.handle)
         if (activeMap.containsKey(handle)) {
             log.info("race is active, performing cancel")
+            RaceDisconnectEvent(handle.trackCode).emit()
             activeMap[handle]?.cancel()
         } else {
             log.info("request ignored ... no such running race")

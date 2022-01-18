@@ -15,6 +15,8 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
     init {
         Events.register(CarConnectedEvent::class.java, this,
             filter={it is CarConnectedEvent && it.trackCode == this.trackCode} )
+        Events.register(RaceDisconnectEvent::class.java, this,
+            filter={it is RaceDisconnectEvent && it.trackCode == this.trackCode})
         log.info("filtering for cars $targetCars")
     }
 
@@ -22,7 +24,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
         try {
             val line = rawLine.trim()
             if (line.isNotEmpty()) {
-                log.trace("rcv >> $line")
+                log.info("rcv >> $line")
                 val bits = line.split(",")
                 if (bits.size > 0) {
                     when (bits[0]) {
@@ -73,7 +75,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                                 val position = bits[3].trim('"').toInt()
                                 val lastLapTime = convertToSeconds(bits[4])
                                 val flag = bits[5].trim('"', ' ')
-                                log.debug("processing track:$trackCode car:$carNumber lap:$laps time:$lastLapTime")
+                                log.info("processing track:$trackCode car:$carNumber lap:$laps time:$lastLapTime")
                                 leaderboard.updatePosition(carNumber, position, laps, convertToSeconds(bits[6]))
                                 if (targetCars.contains(carNumber)) {
                                     val ahead = getCarAhead(thisCar)
@@ -180,6 +182,8 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                     raceFlag,
                 ).emit()
             }
+        } else if (e is RaceDisconnectEvent) {
+            Events.unregister(this)
         }
     }
 

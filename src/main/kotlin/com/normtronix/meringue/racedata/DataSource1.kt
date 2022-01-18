@@ -1,18 +1,21 @@
 package com.normtronix.meringue.racedata
 
 import com.google.gson.JsonParser
+import com.normtronix.meringue.event.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.features.websocket.*
 import io.ktor.http.cio.websocket.*
+import io.ktor.util.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URL
 import java.time.Instant
 
-open class DataSource1(val raceId:String) {
+open class DataSource1(val raceId:String) : EventHandler {
 
     val provider = "race-monitor"
+    var stopped = false
 
     fun connect() : String {
         val now = Instant.now().epochSecond
@@ -38,20 +41,36 @@ open class DataSource1(val raceId:String) {
             install(WebSockets)
         }
         log.info("connecting to $streamUrl")
-        client.webSocket(streamUrl) {
-            while(true) {
-                val othersMessage = incoming.receive() as? Frame.Text
-                val message = othersMessage?.readText()
-                if (message != null && message.startsWith("$")) {
-                    handler.handleWebSocketMessage(message)
+
+        Events.register(
+            RaceDisconnectEvent::class.java, this,
+            filter={it is RaceDisconnectEvent && it.trackCode == handler.trackCode})
+
+        try {
+            client.webSocket(streamUrl) {
+                while (!stopped) {
+                    val othersMessage = incoming.receive() as? Frame.Text
+                    val message = othersMessage?.readText()
+                    if (message != null && message.startsWith("$")) {
+                        handler.handleWebSocketMessage(message)
+                    }
                 }
             }
+        } catch (e: Exception) {
+            log.error(e)
+        } finally {
+            client.close()
         }
-        // todo client.close()
     }
 
     companion object {
         val log: Logger = LoggerFactory.getLogger(DataSource1::class.java)
+    }
+
+    override suspend fun handleEvent(e: Event) {
+        if (e is RaceDisconnectEvent) {
+            stopped = true
+        }
     }
 
 }

@@ -49,15 +49,17 @@ open class DataSource1(val raceId:String) : EventHandler {
         try {
             client.webSocket(streamUrl) {
                 while (!stopped) {
-                    val othersMessage = incoming.receive() as? Frame.Text
-                    val message = othersMessage?.readText()
-                    if (message != null) {
+                    val joinedMessage = StringBuilder()
+                    do {
+                        val othersMessage = incoming.receive() as? Frame.Text
+                        joinedMessage.append(othersMessage?.readText())
+                    } while (othersMessage != null && !othersMessage.fin)
+                    val message = joinedMessage.toString()
+                    if (message.isNotEmpty()) {
                         val lines = message.split("\n")
                         for (line in lines) {
                             if (line.startsWith("$")) {
                                 handler.handleWebSocketMessage(line)
-                            } else {
-                                log.info("discarding input: $line")
                             }
                         }
                     }

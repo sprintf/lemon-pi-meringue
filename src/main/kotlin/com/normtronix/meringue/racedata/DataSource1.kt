@@ -7,6 +7,7 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.features.websocket.*
 import io.ktor.http.cio.websocket.*
 import io.ktor.util.*
+import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URL
@@ -51,8 +52,15 @@ open class DataSource1(val raceId:String) : EventHandler {
                 while (!stopped) {
                     val othersMessage = incoming.receive() as? Frame.Text
                     val message = othersMessage?.readText()
-                    if (message != null && message.startsWith("$")) {
-                        handler.handleWebSocketMessage(message)
+                    if (message != null) {
+                        val lines = message.split("\n")
+                        for (line in lines) {
+                            if (line.startsWith("$")) {
+                                handler.handleWebSocketMessage(line)
+                            } else {
+                                log.info("discarding input: $line")
+                            }
+                        }
                     }
                 }
             }

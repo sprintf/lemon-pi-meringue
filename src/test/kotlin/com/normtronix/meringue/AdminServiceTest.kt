@@ -2,7 +2,6 @@ package com.normtronix.meringue
 
 import com.google.protobuf.Empty
 import com.normtronix.meringue.racedata.DataSource1
-import com.normtronix.meringue.racedata.DataSource2
 import com.normtronix.meringue.racedata.InvalidRaceId
 import io.mockk.coEvery
 import io.mockk.every

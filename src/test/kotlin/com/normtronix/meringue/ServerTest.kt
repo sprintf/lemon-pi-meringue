@@ -89,7 +89,7 @@ internal class ServerTest {
         }
     }
 
-    class SO<T>() :StreamObserver<T> {
+    class SO<T> :StreamObserver<T> {
         val capture : MutableList<T> = mutableListOf()
 
         override fun onNext(value: T?) {
@@ -99,7 +99,8 @@ internal class ServerTest {
         }
 
         override fun onError(t: Throwable?) {
-            println("got an error")
+            // we expect a deadline exceeded error
+            // println("got an error $t")
         }
 
         override fun onCompleted() {
@@ -148,7 +149,7 @@ internal class ServerTest {
     // multiple cars all sending
     //   only correct pits get it
 
-    // with radio you can't talk from far away
+    // with radio, you can't talk from far away
     // with radio cars do not know their race id
     // cars do know the track they are at
     // the server can also load the tracks ... and can work out the track a car is at from its gps

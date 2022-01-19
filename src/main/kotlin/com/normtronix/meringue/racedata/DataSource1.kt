@@ -4,6 +4,7 @@ import com.google.gson.JsonParser
 import com.normtronix.meringue.event.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.features.*
 import io.ktor.client.features.websocket.*
 import io.ktor.http.cio.websocket.*
 import io.ktor.util.*
@@ -15,6 +16,7 @@ import java.time.Instant
 open class DataSource1(val raceId:String) : EventHandler {
 
     val provider = "race-monitor"
+    val fields: MutableMap<String, String> = mutableMapOf()
     var stopped = false
 
     fun connect() : String {
@@ -28,17 +30,17 @@ open class DataSource1(val raceId:String) : EventHandler {
             throw InvalidRaceId()
         }
         val race = streamData["CurrentRaces"].asJsonArray[0].asJsonObject
-        val liveTimingToken = streamData["LiveTimingToken"].asString
         val liveTimingHost = streamData["LiveTimingHost"].asString
-        val instance = race["Instance"].asString
-        log.info("race = $race instance = $instance")
-        log.debug("token = $liveTimingToken  host = $liveTimingHost")
-        return "wss://${liveTimingHost}/instance/${instance}/${liveTimingToken}"
+        fields["token"] = streamData["LiveTimingToken"].asString
+        fields["instance"] = race["Instance"].asString
+        log.debug("fields = ${fields.values}")
+        return "wss://${liveTimingHost}/instance/${fields["instance"]}/${fields["token"]}"
     }
 
     suspend fun stream(streamUrl: String, handler: DataSourceHandler) {
         val client = HttpClient(CIO) {
             install(WebSockets)
+            BrowserUserAgent()
         }
         log.info("connecting to $streamUrl")
 
@@ -48,6 +50,9 @@ open class DataSource1(val raceId:String) : EventHandler {
 
         try {
             client.webSocket(streamUrl) {
+                val joinMsg = "\$JOIN,${fields["instance"]},${fields["token"]}}"
+                val joinMessage = Frame.byType(true, FrameType.TEXT, joinMsg.encodeToByteArray())
+                outgoing.send(joinMessage)
                 while (!stopped) {
                     val joinedMessage = StringBuilder()
                     do {

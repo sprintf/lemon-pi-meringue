@@ -41,7 +41,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
     @Value("\${adminPassword}")
     lateinit var adminPassword:String
 
-    var raceDataSourceFactoryFn : (String) -> DataSource2 = fun(x:String) : DataSource2 { return DataSource2(x) }
+    var raceDataSourceFactoryFn : (String) -> DataSource1 = fun(x:String) : DataSource1 { return DataSource1(x) }
 
     override suspend fun ping(request: Empty): Empty {
         return Empty.getDefaultInstance()

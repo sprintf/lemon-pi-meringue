@@ -46,6 +46,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                                 }
                             }
                         }
+                        // note : these appear to arrive in the order J, G, H
                         "\$G" -> {
                             if (bits.size == 5) {
                                 val carNumber = bits[2].trim('"')

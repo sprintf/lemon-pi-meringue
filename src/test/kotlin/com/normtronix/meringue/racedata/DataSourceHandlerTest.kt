@@ -63,7 +63,8 @@ internal class DataSourceHandlerTest {
         val car964 = leaderboard.lookup("964")
         println(car964?.gap(car964.getCarInFront(PositionEnum.OVERALL)))
 
-        assertEquals(28, th.callbackCount["964"])
+        // there's some dupes in here now that we dont use RMHL codes
+        assertEquals(35, th.callbackCount["964"])
     }
 
     @Test

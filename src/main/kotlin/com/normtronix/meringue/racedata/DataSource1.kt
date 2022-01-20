@@ -1,18 +1,23 @@
 package com.normtronix.meringue.racedata
 
 import com.google.gson.JsonParser
+import com.normtronix.meringue.event.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.features.*
 import io.ktor.client.features.websocket.*
 import io.ktor.http.cio.websocket.*
+import io.ktor.util.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URL
 import java.time.Instant
 
-open class DataSource1(val raceId:String) {
+open class DataSource1(val raceId:String) : EventHandler {
 
     val provider = "race-monitor"
+    val fields: MutableMap<String, String> = mutableMapOf()
+    var stopped = false
 
     fun connect() : String {
         val now = Instant.now().epochSecond
@@ -25,33 +30,61 @@ open class DataSource1(val raceId:String) {
             throw InvalidRaceId()
         }
         val race = streamData["CurrentRaces"].asJsonArray[0].asJsonObject
-        val liveTimingToken = streamData["LiveTimingToken"].asString
         val liveTimingHost = streamData["LiveTimingHost"].asString
-        val instance = race["Instance"].asString
-        log.info("race = $race instance = $instance")
-        log.debug("token = $liveTimingToken  host = $liveTimingHost")
-        return "wss://${liveTimingHost}/instance/${instance}/${liveTimingToken}"
+        fields["token"] = streamData["LiveTimingToken"].asString
+        fields["instance"] = race["Instance"].asString
+        log.debug("fields = ${fields.values}")
+        return "wss://${liveTimingHost}/instance/${fields["instance"]}/${fields["token"]}"
     }
 
     suspend fun stream(streamUrl: String, handler: DataSourceHandler) {
         val client = HttpClient(CIO) {
             install(WebSockets)
+            BrowserUserAgent()
         }
         log.info("connecting to $streamUrl")
-        client.webSocket(streamUrl) {
-            while(true) {
-                val othersMessage = incoming.receive() as? Frame.Text
-                val message = othersMessage?.readText()
-                if (message != null && message.startsWith("$")) {
-                    handler.handleWebSocketMessage(message)
+
+        Events.register(
+            RaceDisconnectEvent::class.java, this,
+            filter={it is RaceDisconnectEvent && it.trackCode == handler.trackCode})
+
+        try {
+            client.webSocket(streamUrl) {
+                val joinMsg = "\$JOIN,${fields["instance"]},${fields["token"]}}"
+                val joinMessage = Frame.byType(true, FrameType.TEXT, joinMsg.encodeToByteArray())
+                outgoing.send(joinMessage)
+                while (!stopped) {
+                    val joinedMessage = StringBuilder()
+                    do {
+                        val othersMessage = incoming.receive() as? Frame.Text
+                        joinedMessage.append(othersMessage?.readText())
+                    } while (othersMessage != null && !othersMessage.fin)
+                    val message = joinedMessage.toString()
+                    if (message.isNotEmpty()) {
+                        val lines = message.split("\n")
+                        for (line in lines) {
+                            if (line.startsWith("$")) {
+                                handler.handleWebSocketMessage(line)
+                            }
+                        }
+                    }
                 }
             }
+        } catch (e: Exception) {
+            log.error(e)
+        } finally {
+            client.close()
         }
-        // todo client.close()
     }
 
     companion object {
         val log: Logger = LoggerFactory.getLogger(DataSource1::class.java)
+    }
+
+    override suspend fun handleEvent(e: Event) {
+        if (e is RaceDisconnectEvent) {
+            stopped = true
+        }
     }
 
 }

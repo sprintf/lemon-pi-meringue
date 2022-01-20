@@ -1,11 +1,9 @@
 package com.normtronix.meringue
 
 import com.google.protobuf.Empty
+import com.normtronix.meringue.event.RaceDisconnectEvent
+import com.normtronix.meringue.racedata.*
 import io.grpc.Status
-import com.normtronix.meringue.racedata.DataSource1
-import com.normtronix.meringue.racedata.DataSourceHandler
-import com.normtronix.meringue.racedata.InvalidRaceId
-import com.normtronix.meringue.racedata.RaceOrder
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -134,6 +132,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
         val handle = Handle.fromString(request.handle)
         if (activeMap.containsKey(handle)) {
             log.info("race is active, performing cancel")
+            RaceDisconnectEvent(handle.trackCode).emit()
             activeMap[handle]?.cancel()
         } else {
             log.info("request ignored ... no such running race")

@@ -2,26 +2,32 @@ package com.normtronix.meringue.racedata
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.net.URL
+import java.util.stream.Stream
 
 class RaceDataIndexItem(val raceId: String, val trackName: String, var eventName: String? = null)
 
 @Component
 class DS1RaceLister {
 
-    val eventList:MutableMap<String, RaceDataIndexItem> = mutableMapOf()
+    private var eventList:Map<String, RaceDataIndexItem> = mapOf()
 
     init {
         loadData()
     }
 
+    fun getLiveRaces(): Stream<RaceDataIndexItem> {
+        return eventList.values.stream()
+    }
+
+    @Scheduled(fixedDelayString = "5 minutes")
     private fun loadData() {
-        // https://storage.googleapis.com/perplexus/public/tracks.yaml
         log.info("loading race index data")
         val linkRE = Regex("@ <a href=\"(.*?)\">(.*?)</a")
         val raceListHtml = URL("https://www.race-monitor.com/Live").readText()
-
+        val tmpEventList:MutableMap<String, RaceDataIndexItem> = mutableMapOf()
 
         val matchResult = linkRE.findAll(raceListHtml)
         for (result in matchResult) {
@@ -31,7 +37,7 @@ class DS1RaceLister {
                 it[it.size - 1].toInt().toString()
             }
             val trackName = result.groupValues[2]
-            eventList[raceId] = RaceDataIndexItem(raceId, trackName)
+            tmpEventList[raceId] = RaceDataIndexItem(raceId, trackName)
         }
 
         val eventNameRE = Regex("class=\"largeRaceText\"><a href=\"(.*?)\">(.*?)</a")
@@ -42,13 +48,13 @@ class DS1RaceLister {
                 it[it.size - 1].toInt().toString()
             }
             val eventName = result.groupValues[2]
-            eventList[raceId]?.let {
+            tmpEventList[raceId]?.let {
                 it.eventName = eventName
             }
         }
 
         log.info("finished loading race index data ")
-        // println(eventList.values)
+        eventList = tmpEventList.toMap()
     }
 
     companion object {

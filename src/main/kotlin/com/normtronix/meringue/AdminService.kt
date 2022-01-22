@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.BadCredentialsException
 import java.io.IOException
+import java.util.stream.Collectors
 
 @GrpcService(interceptors = [AdminSecurityInterceptor::class])
 @GrpcAdvice
@@ -28,6 +29,9 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
 
     @Autowired
     lateinit var trackMetaData: TrackMetaDataLoader
+
+    @Autowired
+    lateinit var raceLister: DS1RaceLister
 
     @Autowired
     lateinit var lemonPiService: Server
@@ -99,6 +103,21 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
             .setTrackCode(request.trackCode)
             .setHandle(key.toString())
             .setRunning(activeMap[key]?.isActive ?: false)
+            .build()
+    }
+
+    override suspend fun listLiveRaces(request: Empty): MeringueAdmin.LiveRaceListResponse {
+        val liveRaces = raceLister.getLiveRaces()
+            .map {
+                    MeringueAdmin.LiveRace.newBuilder()
+                        .setRaceId(it.raceId)
+                        .setTrackName(it.trackName)
+                        .setEventName(it.eventName)
+                        .build()
+                }
+            .collect(Collectors.toList())
+        return MeringueAdmin.LiveRaceListResponse.newBuilder()
+            .addAllRaces(liveRaces)
             .build()
     }
 

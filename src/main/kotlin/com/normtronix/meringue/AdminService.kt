@@ -13,17 +13,21 @@ import net.devh.boot.grpc.server.advice.GrpcExceptionHandler
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.BadCredentialsException
 import java.io.IOException
+import java.lang.management.ManagementFactory
+import java.lang.management.ThreadMXBean
 import java.util.stream.Collectors
+
 
 @GrpcService(interceptors = [AdminSecurityInterceptor::class])
 @GrpcAdvice
 @Configuration
-class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
+class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), InitializingBean {
 
     private val activeMap = mutableMapOf<Handle, Job>()
 
@@ -45,9 +49,31 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
     @Value("\${adminPassword}")
     lateinit var adminPassword:String
 
+    @Value("\${force.race.ids:[]}")
+    lateinit var forceRaceIds:List<String>
+
     var raceDataSourceFactoryFn : (String) -> DataSource1 = fun(x:String) : DataSource1 { return DataSource1(x) }
 
+    override fun afterPropertiesSet() {
+        if (forceRaceIds.size >= 1 && forceRaceIds[0].contains(":")) {
+            for (raceTuple in forceRaceIds) {
+                val trackCode = raceTuple.split(":").first()
+                val raceId = raceTuple.split(":").last()
+                if (trackCode.isNotEmpty() && raceId.isNotEmpty()) {
+                    _connectRaceData(trackCode, raceId)
+                }
+            }
+        }
+    }
+
     override suspend fun ping(request: Empty): Empty {
+        log.info("received ping() ... logging threaddump..")
+        val threadDump = StringBuffer(System.lineSeparator())
+        val threadMXBean: ThreadMXBean = ManagementFactory.getThreadMXBean()
+        for (threadInfo in threadMXBean.dumpAllThreads(false, false)) {
+            threadDump.append(threadInfo.toString())
+        }
+        log.info(threadDump.toString())
         return Empty.getDefaultInstance()
     }
 
@@ -91,11 +117,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
                 .build()
         }
 
-        val raceDataSource = raceDataSourceFactoryFn(request.providerId)
-        val streamUrl = raceDataSource.connect()
-        val jobId = GlobalScope.launch(newSingleThreadContext("thread-${request.trackCode}")) {
-            raceDataSource.stream(streamUrl, DataSourceHandler(RaceOrder(), request.trackCode, getConnectedCars(request.trackCode)))
-        }
+        val jobId = _connectRaceData(request.trackCode, request.providerId)
         activeMap[key] = jobId
         log.info("returning with result for race data stream $key")
         return MeringueAdmin.RaceDataConnectionResponse.newBuilder()
@@ -104,6 +126,19 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase() {
             .setHandle(key.toString())
             .setRunning(activeMap[key]?.isActive ?: false)
             .build()
+    }
+
+    private fun _connectRaceData(trackCode: String, raceId: String): Job {
+        val raceDataSource = raceDataSourceFactoryFn(raceId)
+        val streamUrl = raceDataSource.connect()
+        log.info("launching thread to run $raceId @ $trackCode")
+        val jobId = GlobalScope.launch(newSingleThreadContext("thread-${trackCode}")) {
+            raceDataSource.stream(
+                streamUrl,
+                DataSourceHandler(RaceOrder(), trackCode, getConnectedCars(trackCode))
+            )
+        }
+        return jobId
     }
 
     override suspend fun listLiveRaces(request: Empty): MeringueAdmin.LiveRaceListResponse {

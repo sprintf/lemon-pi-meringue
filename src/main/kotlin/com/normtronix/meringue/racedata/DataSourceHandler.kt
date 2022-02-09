@@ -6,6 +6,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 
 class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targetCarParam: Set<String>) : EventHandler {
 
@@ -78,6 +79,8 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                     }
                 }
             }
+        } catch (e1: DateTimeParseException) {
+            log.info("got unexpected date/time : $e1")
         } catch (e: Exception) {
             log.error("exception ", e)
         }

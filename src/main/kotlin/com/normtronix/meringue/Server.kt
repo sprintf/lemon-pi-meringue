@@ -158,16 +158,15 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
         log.info("handling event $e")
         when (e) {
             is RaceStatusEvent -> {
-                if (e.flagStatus.isNullOrEmpty()) {
+                if (e.flagStatus.isEmpty()) {
                     return
                 }
-                val flagStatus = LemonPi.RaceFlagStatus.valueOf(e.flagStatus.trim().uppercase())
                 getConnectedCarChannels(e.trackCode).forEach {
                     val msg = LemonPi.ToCarMessage.newBuilder().raceStatusBuilder
                         .setSender("meringue")
                         .setTimestamp(Instant.now().epochSecond.toInt())
                         .setSeqNum(seqNo++)
-                        .setFlagStatus(flagStatus)
+                        .setFlagStatus(convertFlagStatus(e.flagStatus))
                         .build()
                     it.send(LemonPi.ToCarMessage.newBuilder().mergeRaceStatus(msg).build())
                     log.info("sent flag message to some or other car")
@@ -187,6 +186,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
                     .setPosition(e.position)
                     .setPositionInClass(e.positionInClass)
                     .setCarAhead(ahead)
+                    .setFlagStatus(convertFlagStatus(e.flagStatus))
                     .build()
                 getConnectedCarNumbers(e.trackCode).forEach {
                     if (it == msg.carNumber || it == msg.carAhead.carNumber) {
@@ -198,6 +198,13 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
             }
         }
     }
+
+    private fun convertFlagStatus(statusString: String) =
+        when (statusString) {
+            "" -> { LemonPi.RaceFlagStatus.UNKNOWN }
+            else -> LemonPi.RaceFlagStatus.valueOf(statusString.trim().uppercase())
+        }
+
 }
 
 class MismatchedKeyException(): Exception()

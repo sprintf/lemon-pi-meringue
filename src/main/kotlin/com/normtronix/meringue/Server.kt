@@ -203,6 +203,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                     .setLapCount(e.lapCount)
                     .setPosition(e.position)
                     .setPositionInClass(e.positionInClass)
+                    .setLastLapTime(e.lastLapTime.toFloat())
                     .setCarAhead(ahead)
                     .setFlagStatus(convertFlagStatus(e.flagStatus))
                     .build()

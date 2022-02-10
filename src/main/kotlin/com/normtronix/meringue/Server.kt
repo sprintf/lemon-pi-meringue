@@ -4,6 +4,7 @@ import com.google.protobuf.Empty
 import com.normtronix.meringue.ContextInterceptor.Companion.requestor
 import com.normtronix.meringue.event.*
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import net.devh.boot.grpc.server.service.GrpcService
@@ -12,10 +13,11 @@ import org.slf4j.LoggerFactory
 import java.time.Instant
 
 
+@ExperimentalCoroutinesApi
 @GrpcService(interceptors = [ContextInterceptor::class, ServerSecurityInterceptor::class])
-class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler {
+class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler {
 
-    // map of trackCode -> pitId -> ChannelAndKey<LemonPi.ToPitMessage>
+    // map of trackCode -> carNumber -> ChannelAndKey<LemonPi.ToPitMessage>
     val toPitIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToPitMessage>>> = mutableMapOf()
     // map of trackCode -> carNumber -> ChannelAndKey<LemonPi.ToCarMessage>
     val toCarIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToCarMessage>>> = mutableMapOf()
@@ -82,7 +84,7 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
         index: MutableMap<String, MutableMap<String, ChannelAndKey<T>>>
     ): Channel<T> {
         if (!index.containsKey(currentTrack)) {
-            index[currentTrack] = mutableMapOf<String, ChannelAndKey<T>>()
+            index[currentTrack] = mutableMapOf()
         }
         if (!index[currentTrack]?.containsKey(currentCar)!!) {
             log.info("new channel created for recipient $currentCar")
@@ -106,26 +108,26 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
     }
 
     private fun extractTargetCar(request: LemonPi.ToCarMessage): String {
-        if (request.hasMessage()) {
-            return request.message.carNumber
+        return if (request.hasMessage()) {
+            request.message.carNumber
         } else if (request.hasSetTarget()) {
-            return request.setTarget.carNumber
+            request.setTarget.carNumber
         } else if (request.hasResetFastLap()) {
-            return request.resetFastLap.carNumber
+            request.resetFastLap.carNumber
         } else if (request.hasReboot()) {
-            return request.reboot.carNumber
+            request.reboot.carNumber
         } else if (request.hasSetFuel()) {
-            return request.setFuel.carNumber
+            request.setFuel.carNumber
         } else {
             throw Exception("unable to extract car number from request ")
         }
     }
 
     /*
-     * get all the connected cars at a track .. useful for sending out yellow flags
+     * get all the connected cars at a track ... useful for sending out yellow flags
      */
     private fun getConnectedCarChannels(trackCode: String) :List<Channel<LemonPi.ToCarMessage>> {
-        val cars = toCarIndex.get(trackCode) ?: return emptyList()
+        val cars = toCarIndex[trackCode] ?: return emptyList()
         return cars.values.filter {
             !it.channel.isClosedForSend
         }.map{
@@ -133,8 +135,20 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
         }.toList()
     }
 
+    /*
+     * get all the connected pits at a track ... useful for sending out yellow flags
+     */
+    private fun getConnectedPitChannels(trackCode: String) :List<Channel<LemonPi.ToPitMessage>> {
+        val pits = toPitIndex[trackCode] ?: return emptyList()
+        return pits.values.filter {
+            !it.channel.isClosedForSend
+        }.map{
+            it.channel
+        }.toList()
+    }
+
     internal fun getConnectedCarNumbers(trackCode: String) :Set<String> {
-        val cars = toCarIndex.get(trackCode) ?: return emptySet()
+        val cars = toCarIndex[trackCode] ?: return emptySet()
         return cars.entries.filter {
             !it.value.channel.isClosedForSend
         }.map {
@@ -144,8 +158,8 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
 
     // test only
     fun closeChannels() {
-        toPitIndex.values.forEach { it.values.forEach { it.channel.close() }}
-        toCarIndex.values.forEach { it.values.forEach { it.channel.close() }}
+        toPitIndex.values.forEach { it.values.forEach { c -> c.channel.close() }}
+        toCarIndex.values.forEach { it.values.forEach { c -> c.channel.close() }}
     }
 
     data class ChannelAndKey<T>(val channel: Channel<T>, val radioKey:String)
@@ -161,15 +175,19 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
                 if (e.flagStatus.isEmpty()) {
                     return
                 }
+                val msg = LemonPi.ToCarMessage.newBuilder().raceStatusBuilder
+                    .setSender("meringue")
+                    .setTimestamp(Instant.now().epochSecond.toInt())
+                    .setSeqNum(seqNo++)
+                    .setFlagStatus(convertFlagStatus(e.flagStatus))
+                    .build()
                 getConnectedCarChannels(e.trackCode).forEach {
-                    val msg = LemonPi.ToCarMessage.newBuilder().raceStatusBuilder
-                        .setSender("meringue")
-                        .setTimestamp(Instant.now().epochSecond.toInt())
-                        .setSeqNum(seqNo++)
-                        .setFlagStatus(convertFlagStatus(e.flagStatus))
-                        .build()
                     it.send(LemonPi.ToCarMessage.newBuilder().mergeRaceStatus(msg).build())
-                    log.info("sent flag message to some or other car")
+                    log.info("sent flag message to a car")
+                }
+                getConnectedPitChannels(e.trackCode).forEach {
+                    it.send(LemonPi.ToPitMessage.newBuilder().mergeRaceStatus(msg).build())
+                    log.info("sent flag message to pits")
                 }
             }
             is LapCompletedEvent -> {
@@ -193,6 +211,15 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
                         toCarIndex[e.trackCode]?.get(it)?.channel?.send(
                             LemonPi.ToCarMessage.newBuilder().mergeRacePosition(msg).build())
                         log.info("sent race position message to $it")
+                        val pitChannel = toPitIndex[e.trackCode]?.get(it)?.channel
+                        when (pitChannel?.isClosedForSend) {
+                            true -> {}
+                            else -> {
+                                pitChannel?.send(
+                                    LemonPi.ToPitMessage.newBuilder().mergeRacePosition(msg).build()
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -207,5 +234,5 @@ class Server() : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandle
 
 }
 
-class MismatchedKeyException(): Exception()
+class MismatchedKeyException: Exception()
 

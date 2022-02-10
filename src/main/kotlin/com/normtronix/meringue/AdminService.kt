@@ -55,7 +55,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
     var raceDataSourceFactoryFn : (String) -> DataSource1 = fun(x:String) : DataSource1 { return DataSource1(x) }
 
     override fun afterPropertiesSet() {
-        if (forceRaceIds.size >= 1 && forceRaceIds[0].contains(":")) {
+        if (forceRaceIds.isNotEmpty() && forceRaceIds[0].contains(":")) {
             for (raceTuple in forceRaceIds) {
                 val trackCode = raceTuple.split(":").first()
                 val raceId = raceTuple.split(":").last()

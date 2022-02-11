@@ -16,6 +16,9 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.ExitCodeGenerator
+import org.springframework.boot.SpringApplication
+import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.BadCredentialsException
 import java.io.IOException
@@ -30,6 +33,9 @@ import java.util.stream.Collectors
 class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), InitializingBean {
 
     private val activeMap = mutableMapOf<Handle, Job>()
+
+    @Autowired
+    lateinit var appContext: ApplicationContext
 
     @Autowired
     lateinit var trackMetaData: TrackMetaDataLoader
@@ -126,6 +132,12 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
             .setHandle(key.toString())
             .setRunning(activeMap[key]?.isActive ?: false)
             .build()
+    }
+
+    override suspend fun shutdown(request: Empty): Empty {
+        log.warn("shutdown requested !!!")
+        SpringApplication.exit(appContext, ExitCodeGenerator { 0 })
+        return Empty.getDefaultInstance()
     }
 
     private fun _connectRaceData(trackCode: String, raceId: String): Job {

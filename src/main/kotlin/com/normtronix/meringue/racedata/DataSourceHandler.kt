@@ -30,9 +30,15 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                 if (bits.size > 0) {
                     when (bits[0]) {
                         "\$COMP" -> {
+                            val teamName = when (bits.size) {
+                                4 -> { "" }
+                                5 -> { bits[4].trim('"') }
+                                in 6..20 -> { bits[4].trim('"') + bits[5].trim('"') }
+                                else -> { "unknown "}
+                            }
                             leaderboard.addCar(CarPosition(bits[1].trim('"'),
-                            bits[4].trim('"') + bits[5].trim('"'),
-                            classId = bits[3]))
+                                teamName,
+                                classId = bits[3]))
                         }
                         "\$C" -> {
                             leaderboard.addClass(bits[1], bits[2].trim('"'))

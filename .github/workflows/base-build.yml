@@ -27,8 +27,12 @@ jobs:
              rm src/main/proto/*.proto && \
              ln -s `pwd`/protos/lemon-pi.proto src/main/proto/lemon-pi.proto && \
              ln -s `pwd`/protos/meringue-admin.proto src/main/proto/meringue-admin.proto
+      - name: Validate Gradle
+        uses: gradle/wrapper-validate-action
       - name: Build with Gradle
-        run: ./gradlew build
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: build
       - name: Upload Jar
         uses: actions/upload-artifact@v2
         with:

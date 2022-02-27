@@ -70,7 +70,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
                         "\$H" -> {
                             if (bits.size == 5) {
                                 val carNumber = bits[2].trim('"')
-                                leaderboard.updateFastestLap(carNumber, bits[3].toInt(), convertToSeconds(bits[4]))
+                                leaderboard.updateFastestLap(carNumber, bits[3].trim('"').toInt(), convertToSeconds(bits[4]))
                             }
                         }
                         "\$J" -> {
@@ -96,6 +96,10 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
         thisCar: CarPosition,
     ) {
         val carNumber = thisCar.carNumber
+
+        if (thisCar.position == 1) {
+            log.info("lead car ${carNumber} is starting lap ${thisCar.lapsCompleted + 1}")
+        }
 
         if (targetCars.contains(carNumber)) {
             val ahead = getCarAhead(thisCar)

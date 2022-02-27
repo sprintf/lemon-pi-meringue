@@ -28,7 +28,7 @@ jobs:
              ln -s `pwd`/protos/lemon-pi.proto src/main/proto/lemon-pi.proto && \
              ln -s `pwd`/protos/meringue-admin.proto src/main/proto/meringue-admin.proto
       - name: Validate Gradle
-        uses: gradle/wrapper-validate-action
+        uses: gradle/wrapper-validate-action@v1
       - name: Build with Gradle
         uses: gradle/gradle-build-action@v2
         with:

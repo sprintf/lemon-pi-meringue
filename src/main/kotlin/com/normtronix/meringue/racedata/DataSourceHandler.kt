@@ -119,7 +119,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
         }
     }
 
-    private suspend fun emitLapCompleted(
+    private fun emitLapCompleted(
         thisCar: CarPosition,
         ahead: CarPosition?
     ) {
@@ -133,7 +133,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
             gap = thisCar.gap(ahead),
             thisCar.lastLapTime,
             raceFlag,
-        ).emit()
+        ).emitAsync()
     }
 
     internal fun getCarAhead(thisCar: CarPosition?) : CarPosition? {

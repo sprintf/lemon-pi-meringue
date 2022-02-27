@@ -7,7 +7,6 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.features.*
 import io.ktor.client.features.websocket.*
 import io.ktor.http.cio.websocket.*
-import io.ktor.util.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URL
@@ -39,7 +38,12 @@ open class DataSource1(val raceId:String) : EventHandler {
 
     suspend fun stream(streamUrl: String, handler: DataSourceHandler) {
         val client = HttpClient(CIO) {
-            install(WebSockets)
+            install(WebSockets) {
+                pingInterval = 5000
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 3000
+            }
             BrowserUserAgent()
         }
         log.info("connecting to $streamUrl")
@@ -50,13 +54,20 @@ open class DataSource1(val raceId:String) : EventHandler {
 
         try {
             client.webSocket(streamUrl) {
+                log.info("connected to url, timeout = ${this.timeoutMillis},  ping_interval = ${this.pingIntervalMillis}")
                 val joinMsg = "\$JOIN,${fields["instance"]},${fields["token"]}}"
                 val joinMessage = Frame.byType(true, FrameType.TEXT, joinMsg.encodeToByteArray())
                 outgoing.send(joinMessage)
                 while (!stopped) {
                     val joinedMessage = StringBuilder()
                     do {
-                        val othersMessage = incoming.receive() as? Frame.Text
+                        val incomingFrame = incoming.receive()
+                        if (incomingFrame is Frame.Close) {
+                            log.warn("websocket stream has ended")
+                            stopped = true
+                            break
+                        }
+                        val othersMessage = incomingFrame as? Frame.Text
                         joinedMessage.append(othersMessage?.readText())
                     } while (othersMessage != null && !othersMessage.fin)
                     val message = joinedMessage.toString()
@@ -71,8 +82,9 @@ open class DataSource1(val raceId:String) : EventHandler {
                 }
             }
         } catch (e: Exception) {
-            log.error(e)
+            log.error("got an exception from websocket", e)
         } finally {
+            log.warn("client is closing, unclear if exception was thrown")
             client.close()
         }
     }

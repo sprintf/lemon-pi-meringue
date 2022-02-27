@@ -25,7 +25,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
         try {
             val line = rawLine.trim()
             if (line.isNotEmpty()) {
-               // log.debug("rcv >> $line")
+                log.debug("rcv >> $line")
                 val bits = line.split(",")
                 if (bits.size > 0) {
                     when (bits[0]) {

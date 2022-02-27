@@ -8,7 +8,9 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
-class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targetCarParam: Set<String>) : EventHandler {
+class DataSourceHandler(private val leaderboard: RaceOrder,
+                        val trackCode: String,
+                        targetCarParam: Set<String>) : EventHandler {
 
     private val targetCars = targetCarParam.toMutableSet()
     private var raceFlag = ""
@@ -25,9 +27,9 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
         try {
             val line = rawLine.trim()
             if (line.isNotEmpty()) {
-                log.info("rcv >> $line")
+                // log.info("rcv >> $line")
                 val bits = line.split(",")
-                if (bits.size > 0) {
+                if (bits.isNotEmpty()) {
                     when (bits[0]) {
                         "\$COMP" -> {
                             val teamName = when (bits.size) {
@@ -98,7 +100,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
         val carNumber = thisCar.carNumber
 
         if (thisCar.position == 1) {
-            log.info("lead car ${carNumber} is starting lap ${thisCar.lapsCompleted + 1}")
+            log.info("lead car $carNumber is starting lap ${thisCar.lapsCompleted + 1}")
         }
 
         if (targetCars.contains(carNumber)) {
@@ -119,7 +121,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
         }
     }
 
-    private fun emitLapCompleted(
+    private suspend fun emitLapCompleted(
         thisCar: CarPosition,
         ahead: CarPosition?
     ) {
@@ -133,7 +135,7 @@ class DataSourceHandler(val leaderboard: RaceOrder, val trackCode: String, targe
             gap = thisCar.gap(ahead),
             thisCar.lastLapTime,
             raceFlag,
-        ).emitAsync()
+        ).emit()
     }
 
     internal fun getCarAhead(thisCar: CarPosition?) : CarPosition? {

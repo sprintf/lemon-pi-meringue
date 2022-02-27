@@ -7,6 +7,7 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.features.*
 import io.ktor.client.features.websocket.*
 import io.ktor.http.cio.websocket.*
+import kotlinx.coroutines.launch
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URL
@@ -75,7 +76,9 @@ open class DataSource1(val raceId:String) : EventHandler {
                         val lines = message.split("\n")
                         for (line in lines) {
                             if (line.startsWith("$")) {
-                                handler.handleWebSocketMessage(line)
+                                launch {
+                                    handler.handleWebSocketMessage(line)
+                                }
                             }
                         }
                     }

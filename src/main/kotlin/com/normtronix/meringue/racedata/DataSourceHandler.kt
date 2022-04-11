@@ -23,7 +23,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         log.info("filtering for cars $targetCars")
     }
 
-    fun handleWebSocketMessage(rawLine: String) {
+    suspend fun handleWebSocketMessage(rawLine: String) {
         try {
             val line = rawLine.trim()
             if (line.isNotEmpty()) {
@@ -50,7 +50,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                                 val newFlag = bits[5].trim('"',' ')
                                 if (raceFlag != newFlag) {
                                     raceFlag = newFlag
-                                    RaceStatusEvent(trackCode, newFlag).emitAsync()
+                                    RaceStatusEvent(trackCode, newFlag).emit()
                                     log.info("race status is $raceFlag")
                                 }
                             }
@@ -93,7 +93,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         }
     }
 
-    private fun constructLapCompleteEvent(
+    private suspend fun constructLapCompleteEvent(
         thisCar: RaceViewCar,
     ) {
         val carNumber = thisCar.carNumber
@@ -120,7 +120,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         }
     }
 
-    private fun emitLapCompleted(
+    private suspend fun emitLapCompleted(
         thisCar: RaceViewCar,
         ahead: RaceViewCar?
     ) {
@@ -134,7 +134,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
             gap = thisCar.gap(ahead),
             thisCar.getLastLapTime(),
             raceFlag,
-        ).emitAsync()
+        ).emit()
     }
 
     internal fun getCarAhead(thisCar: RaceViewCar?) : RaceViewCar? {

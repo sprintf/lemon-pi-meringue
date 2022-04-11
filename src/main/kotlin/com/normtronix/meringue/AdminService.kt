@@ -58,6 +58,9 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
     @Value("\${force.race.ids:[]}")
     lateinit var forceRaceIds:List<String>
 
+    @Value("\${log.racedata:String}")
+    lateinit var logRaceData:String
+
     var raceDataSourceFactoryFn : (String) -> DataSource1 = fun(x:String) : DataSource1 { return DataSource1(x) }
 
     override fun afterPropertiesSet() {
@@ -142,6 +145,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
 
     private fun _connectRaceData(trackCode: String, raceId: String): Job {
         val raceDataSource = raceDataSourceFactoryFn(raceId)
+        raceDataSource.logRaceData = logRaceData.toBooleanStrict()
         val streamUrl = raceDataSource.connect()
         log.info("launching thread to run $raceId @ $trackCode")
         val jobId = GlobalScope.launch(newSingleThreadContext("thread-${trackCode}")) {

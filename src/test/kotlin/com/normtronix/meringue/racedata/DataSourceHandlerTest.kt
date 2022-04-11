@@ -52,16 +52,16 @@ internal class DataSourceHandlerTest {
             .forEach {
                 runBlocking {
                     ds.handleWebSocketMessage(it)
-                    leaderboard.checkIntegrity()
                 }
             }
 
-        val car35 = leaderboard.lookup("35")
-        println(car35?.gap(car35.getCarInFront(PositionEnum.OVERALL)))
-        println(car35?.gap(car35.getCarInFront(PositionEnum.IN_CLASS)))
+        val view = leaderboard.createRaceView()
+        val car35 = view.lookupCar("35")
+        println(car35?.gap(car35.getCarAhead(PositionEnum.OVERALL)))
+        println(car35?.gap(car35.getCarAhead(PositionEnum.IN_CLASS)))
 
-        val car964 = leaderboard.lookup("964")
-        println(car964?.gap(car964.getCarInFront(PositionEnum.OVERALL)))
+        val car964 = view.lookupCar("964")
+        println(car964?.gap(car964.getCarAhead(PositionEnum.OVERALL)))
 
         // there's some dupes in here now that we dont use RMHL codes
         assertEquals(35, th.callbackCount["964"])
@@ -89,9 +89,9 @@ internal class DataSourceHandlerTest {
         val leaderboard = RaceOrder()
         val ds = DataSourceHandler(leaderboard, "thil", setOf())
 
-        leaderboard.addCar(CarPosition("23", "", "A"))
-        leaderboard.addCar(CarPosition("22", "", "A"))
-        leaderboard.addCar(CarPosition("62", "", "A"))
+        leaderboard.addCar("23", "", "A")
+        leaderboard.addCar("22", "", "A")
+        leaderboard.addCar("62", "", "A")
 
         runBlocking {
             ds.handleWebSocketMessage(rawLine1)
@@ -99,10 +99,10 @@ internal class DataSourceHandlerTest {
             ds.handleWebSocketMessage(rawLine3)
         }
 
-        val leader = leaderboard.getLeadCar()
-        val car62 = leaderboard.lookup("62")
+        val view = leaderboard.createRaceView()
+        val car62 = view.lookupCar("62")
 
-        print(car62?.gap(car62.getCarInFront(PositionEnum.OVERALL)))
+        print(car62?.gap(car62.getCarAhead(PositionEnum.OVERALL)))
 
     }
 }

@@ -38,9 +38,9 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                                 in 6..20 -> { bits[4].trim('"') + bits[5].trim('"') }
                                 else -> { "unknown "}
                             }
-                            leaderboard.addCar(CarPosition(bits[1].trim('"'),
+                            leaderboard.addCar(bits[1].trim('"'),
                                 teamName,
-                                classId = bits[3]))
+                                classId = bits[3])
                         }
                         "\$C" -> {
                             leaderboard.addClass(bits[1], bits[2].trim('"'))
@@ -62,9 +62,8 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                                 // if we get updates saying they completed null laps then ignore it
                                 bits[3].toIntOrNull()?.let {
                                     leaderboard.updatePosition(carNumber, bits[1].toInt(), it, convertToSeconds(bits[4]))
-                                    val thisCar = leaderboard.lookup(carNumber)
-                                    if (thisCar != null) {
-                                        constructLapCompleteEvent(thisCar)
+                                    leaderboard.createRaceView().lookupCar(carNumber)?.let {
+                                        constructLapCompleteEvent(it)
                                     }
                                 }
                             }
@@ -100,7 +99,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         val carNumber = thisCar.carNumber
 
         if (thisCar.position == 1) {
-            log.info("lead car $carNumber is starting lap ${thisCar.lapsCompleted + 1}")
+            log.info("lead car $carNumber is starting lap ${thisCar.getLapsCompleted() + 1}")
         }
 
         if (targetCars.contains(carNumber)) {
@@ -109,8 +108,8 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
             log.info("car of interest completed lap")
         } else {
             // it may be that this car is directly behind (in class or overall)
-            val overallAhead = thisCar.getCarInFront(PositionEnum.OVERALL)
-            val aheadInClass = thisCar.getCarInFront(PositionEnum.IN_CLASS)
+            val overallAhead = thisCar.getCarAhead(PositionEnum.OVERALL)
+            val aheadInClass = thisCar.getCarAhead(PositionEnum.IN_CLASS)
             if (overallAhead != null && targetCars.contains(overallAhead.carNumber)) {
                 emitLapCompleted(thisCar, overallAhead)
                 log.info("car following car of interest completed lap")
@@ -128,21 +127,21 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         LapCompletedEvent(
             trackCode,
             thisCar.carNumber,
-            thisCar.lapsCompleted,
+            thisCar.getLapsCompleted(),
             thisCar.position,
-            positionInClass = thisCar.classPosition,
+            positionInClass = thisCar.positionInClass,
             ahead = ahead?.carNumber,
             gap = thisCar.gap(ahead),
-            thisCar.lastLapTime,
+            thisCar.getLastLapTime(),
             raceFlag,
         ).emit()
     }
 
     internal fun getCarAhead(thisCar: CarPosition?) : CarPosition? {
-        val directlyAhead = thisCar?.getCarInFront(PositionEnum.OVERALL)
-        val aheadInClass = thisCar?.getCarInFront(PositionEnum.IN_CLASS)
+        val directlyAhead = thisCar?.getCarAhead(PositionEnum.OVERALL)
+        val aheadInClass = thisCar?.getCarAhead(PositionEnum.IN_CLASS)
         //
-        if (aheadInClass != null && thisCar.classPosition <= 5) {
+        if (aheadInClass != null && thisCar.positionInClass <= 5) {
             return aheadInClass
         }
         return directlyAhead
@@ -167,19 +166,19 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         if (e is CarConnectedEvent) {
             targetCars.add(e.carNumber)
             log.info("registering car ${e.carNumber} filtering for cars $targetCars")
-            val thisCar = leaderboard.lookup(e.carNumber)
+            val thisCar = leaderboard.createRaceView().lookupCar(e.carNumber)
             thisCar?.let {
                 // wait a moment so the connection is there
                 delay(1000)
                 LapCompletedEvent(
                     trackCode,
                     thisCar.carNumber,
-                    thisCar.lapsCompleted,
+                    thisCar.getLapsCompleted(),
                     thisCar.position,
-                    positionInClass = thisCar.classPosition,
-                    ahead = thisCar.carInFront?.carNumber,
+                    positionInClass = thisCar.positionInClass,
+                    ahead = thisCar.carAhead?.carNumber,
                     gap = "-",
-                    thisCar.lastLapTime,
+                    thisCar.getLastLapTime(),
                     raceFlag,
                 ).emit()
             }

@@ -7,9 +7,13 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.features.*
 import io.ktor.client.features.websocket.*
 import io.ktor.http.cio.websocket.*
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.io.File
+import java.io.IOException
 import java.net.URL
 import java.time.Instant
 
@@ -18,6 +22,7 @@ open class DataSource1(val raceId:String) : EventHandler {
     val provider = "race-monitor"
     val fields: MutableMap<String, String> = mutableMapOf()
     var stopped = false
+    var logRaceData = false
 
     fun connect() : String {
         val now = Instant.now().epochSecond
@@ -38,57 +43,68 @@ open class DataSource1(val raceId:String) : EventHandler {
     }
 
     suspend fun stream(streamUrl: String, handler: DataSourceHandler) {
-        val client = HttpClient(CIO) {
-            install(WebSockets) {
-                pingInterval = 5000
-            }
-            install(HttpTimeout) {
-                socketTimeoutMillis = 3000
-            }
-            BrowserUserAgent()
-        }
         log.info("connecting to $streamUrl")
+        File("logs").mkdir()
 
         Events.register(
             RaceDisconnectEvent::class.java, this,
             filter={it is RaceDisconnectEvent && it.trackCode == handler.trackCode})
 
-        try {
-            client.webSocket(streamUrl) {
-                log.info("connected to url, timeout = ${this.timeoutMillis},  ping_interval = ${this.pingIntervalMillis}")
-                val joinMsg = "\$JOIN,${fields["instance"]},${fields["token"]}}"
-                val joinMessage = Frame.byType(true, FrameType.TEXT, joinMsg.encodeToByteArray())
-                outgoing.send(joinMessage)
-                while (!stopped) {
-                    val joinedMessage = StringBuilder()
-                    do {
-                        val incomingFrame = incoming.receive()
-                        if (incomingFrame is Frame.Close) {
-                            log.warn("websocket stream has ended")
-                            stopped = true
-                            break
-                        }
-                        val othersMessage = incomingFrame as? Frame.Text
-                        joinedMessage.append(othersMessage?.readText())
-                    } while (othersMessage != null && !othersMessage.fin)
-                    val message = joinedMessage.toString()
-                    if (message.isNotEmpty()) {
-                        val lines = message.split("\n")
-                        for (line in lines) {
-                            if (line.startsWith("$")) {
-                                launch {
-                                    handler.handleWebSocketMessage(line)
+        while (!stopped) {
+            val client = HttpClient(CIO) {
+                install(WebSockets) {
+                    pingInterval = 5000
+                }
+                install(HttpTimeout) {
+                    socketTimeoutMillis = 3000
+                }
+                BrowserUserAgent()
+            }
+            try {
+                client.webSocket(streamUrl) {
+                    log.info("connected to url, timeout = ${this.timeoutMillis},  ping_interval = ${this.pingIntervalMillis}")
+                    val joinMsg = "\$JOIN,${fields["instance"]},${fields["token"]}}"
+                    val joinMessage = Frame.byType(true, FrameType.TEXT, joinMsg.encodeToByteArray())
+                    outgoing.send(joinMessage)
+                    while (!stopped) {
+                        val joinedMessage = StringBuilder()
+                        do {
+                            val incomingFrame = incoming.receive()
+                            if (incomingFrame is Frame.Close) {
+                                log.warn("websocket stream has ended")
+                                stopped = true
+                                break
+                            }
+                            val othersMessage = incomingFrame as? Frame.Text
+                            joinedMessage.append(othersMessage?.readText())
+                        } while (othersMessage != null && !othersMessage.fin)
+                        val message = joinedMessage.toString()
+                        if (message.isNotEmpty()) {
+                            val lines = message.split("\n")
+                            for (line in lines) {
+                                if (line.startsWith("$")) {
+                                    launch {
+                                        handler.handleWebSocketMessage(line)
+                                    }
+                                }
+                            }
+                            if (logRaceData) {
+                                try {
+                                    File("logs/race-$raceId.log").appendText(message)
+                                } catch (e: IOException) {
+                                    log.warn("failed to log racedata : ${e.message}")
                                 }
                             }
                         }
                     }
                 }
+            } catch (e: ClosedReceiveChannelException) {
+                log.info("got an exception reading from websocket, will reconnect", e)
+            } catch (e: Exception) {
+                log.error("got an exception", e)
             }
-        } catch (e: Exception) {
-            log.error("got an exception from websocket", e)
-        } finally {
-            log.warn("client is closing, unclear if exception was thrown")
             client.close()
+            delay(10000)
         }
     }
 

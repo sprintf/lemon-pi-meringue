@@ -94,7 +94,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
     }
 
     private suspend fun constructLapCompleteEvent(
-        thisCar: RaceViewCar,
+        thisCar: CarPosition,
     ) {
         val carNumber = thisCar.carNumber
 
@@ -121,8 +121,8 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
     }
 
     private suspend fun emitLapCompleted(
-        thisCar: RaceViewCar,
-        ahead: RaceViewCar?
+        thisCar: CarPosition,
+        ahead: CarPosition?
     ) {
         LapCompletedEvent(
             trackCode,
@@ -137,7 +137,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         ).emit()
     }
 
-    internal fun getCarAhead(thisCar: RaceViewCar?) : RaceViewCar? {
+    internal fun getCarAhead(thisCar: CarPosition?) : CarPosition? {
         val directlyAhead = thisCar?.getCarAhead(PositionEnum.OVERALL)
         val aheadInClass = thisCar?.getCarAhead(PositionEnum.IN_CLASS)
         //

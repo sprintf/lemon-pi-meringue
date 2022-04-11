@@ -106,20 +106,20 @@ class RaceOrder {
  * Allows the caller to locate a car, find it's position in class and in the race,
  * and find the cars ahead and behind
  */
-class RaceView internal constructor(private val raceOrder: Map<String, RaceViewCar>) {
+class RaceView internal constructor(private val raceOrder: Map<String, CarPosition>) {
 
-    fun lookupCar(carNumber: String) : RaceViewCar? {
+    fun lookupCar(carNumber: String) : CarPosition? {
         return raceOrder[carNumber]
     }
 
     companion object {
         fun build(race: RaceOrder): RaceView {
             val raceOrder = race.numberLookup.values.stream().sorted().map {
-                RaceViewCar(it.carNumber, it.classId, it)
+                CarPosition(it.carNumber, it.classId, it)
             }.collect(Collectors.toList())
             val classCounts = mutableMapOf<String, Int>()
             race.classLookup.keys.map { classCounts[it] = 1 }
-            var prev:RaceViewCar? = null
+            var prev:CarPosition? = null
             raceOrder.withIndex().forEach {
                 it.value.position = it.index + 1
 //                if (it.value.position != it.value.origin.position && it.value.origin.position > 0) {
@@ -141,11 +141,11 @@ class RaceView internal constructor(private val raceOrder: Map<String, RaceViewC
 
 }
 
-class RaceViewCar(val carNumber: String, val classId: String?, internal val origin: RaceOrder.Car) {
+class CarPosition(val carNumber: String, val classId: String?, internal val origin: RaceOrder.Car) {
 
     internal var position:Int = 0
     internal var positionInClass: Int = 0
-    internal var carAhead: RaceViewCar? = null
+    internal var carAhead: CarPosition? = null
 
     /**
     produce a human-readable format of the gap. This could be in the form:
@@ -154,7 +154,7 @@ class RaceViewCar(val carNumber: String, val classId: String?, internal val orig
     4:05
     12s
      */
-    fun gap(carAhead: RaceViewCar?): String {
+    fun gap(carAhead: CarPosition?): String {
         if (carAhead == null) {
             return "-"
         }
@@ -190,13 +190,13 @@ class RaceViewCar(val carNumber: String, val classId: String?, internal val orig
 
     }
 
-    fun getCarAhead(positionMode: PositionEnum) : RaceViewCar? {
+    fun getCarAhead(positionMode: PositionEnum) : CarPosition? {
         return when (positionMode) {
             PositionEnum.OVERALL -> {
                 carAhead
             }
             PositionEnum.IN_CLASS -> {
-                var cursor: RaceViewCar? = carAhead
+                var cursor: CarPosition? = carAhead
                 while( cursor != null && cursor.classId != classId ) {
                     cursor = cursor.carAhead
                 }

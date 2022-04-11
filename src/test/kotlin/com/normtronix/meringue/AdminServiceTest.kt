@@ -64,6 +64,7 @@ internal class AdminServiceTest {
         val admin = AdminService()
         mockTrackMetadata(admin)
         admin.lemonPiService = Server()
+        admin.logRaceData = "false"
         val ds = DataSource1("12345")
         mockkObject(ds)
         every { ds.connect() } returns "wss://localhost:443/foo.json"
@@ -87,6 +88,7 @@ internal class AdminServiceTest {
     private fun mockTrackMetadata(admin: AdminService) {
         val tmdl = TrackMetaDataLoader()
         mockkObject(tmdl)
+        admin.logRaceData = "false"
         admin.trackMetaData = tmdl
         every { tmdl.listTracks() } returns fakeTracks()
     }

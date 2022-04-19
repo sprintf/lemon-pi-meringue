@@ -1,5 +1,8 @@
 package com.normtronix.meringue.racedata
 
+import com.normtronix.meringue.event.RaceStatusEvent
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.time.Instant
 import java.util.stream.Collectors
@@ -11,6 +14,8 @@ class RaceOrder {
 
     internal val numberLookup: MutableMap<String, Car> = mutableMapOf()
     internal val classLookup: MutableMap<String, String> = mutableMapOf()
+    internal var raceStatus: String = ""
+    internal val lock = Any()
 
     class Car(val carNumber:String,
               val teamDriverName: String,
@@ -52,14 +57,18 @@ class RaceOrder {
                teamDriverName: String,
                classId:String? = null) {
         val newCar = Car(carNumber, teamDriverName, classId)
-        numberLookup[carNumber] = newCar
+        synchronized(lock) {
+            numberLookup[carNumber] = newCar
+        }
     }
 
     /**
      * Add a class to the race
      */
     fun addClass(classId: String, name: String) {
-        classLookup[classId] = name
+        synchronized(lock) {
+            classLookup[classId] = name
+        }
     }
 
     /**
@@ -95,10 +104,37 @@ class RaceOrder {
         return RaceView.build(this)
     }
 
+    suspend fun setFlagStatus(trackCode: String, flag: String) {
+        if (raceStatus != flag) {
+            raceStatus = flag
+            RaceStatusEvent(trackCode, flag).emit()
+            log.info("race status is $flag")
+        }
+    }
 
+    companion object {
+        val log: Logger = LoggerFactory.getLogger(RaceOrder::class.java)
+    }
+}
 
+data class RaceEntry(val carNumber: String, val teamDriverName: String) : Comparable<RaceEntry> {
+
+    private fun isInt(s: String?) : Boolean {
+        return when (s?.toIntOrNull()) {
+            null -> false
+            else -> true
+        }
+    }
+
+    override fun compareTo(other: RaceEntry): Int {
+        if (isInt(carNumber) && isInt(other.carNumber)) {
+            return carNumber.toInt() - other.carNumber.toInt()
+        }
+        return carNumber.compareTo(other.carNumber)
+    }
 
 }
+
 
 /**
  * An immutable view of the race at any point in time.
@@ -106,19 +142,36 @@ class RaceOrder {
  * Allows the caller to locate a car, find it's position in class and in the race,
  * and find the cars ahead and behind
  */
-class RaceView internal constructor(private val raceOrder: Map<String, CarPosition>) {
+class RaceView internal constructor(val raceStatus: String, private val raceOrder: Map<String, CarPosition>) {
 
     fun lookupCar(carNumber: String) : CarPosition? {
         return raceOrder[carNumber]
     }
 
+    fun getField() : List<RaceEntry> {
+        return raceOrder.values.stream()
+            .map { RaceEntry(it.carNumber, it.origin.teamDriverName) }
+            .sorted()
+            .collect(Collectors.toList())
+    }
+
+    override fun toString(): String {
+        return "status: $raceStatus\n" +
+                "field: ${raceOrder.size}\n" +
+                "$raceOrder"
+    }
+
     companion object {
         fun build(race: RaceOrder): RaceView {
-            val raceOrder = race.numberLookup.values.stream().sorted().map {
-                CarPosition(it.carNumber, it.classId, it)
-            }.collect(Collectors.toList())
+            val raceOrder = synchronized(race.lock) {
+                race.numberLookup.values.stream().sorted().map {
+                    CarPosition(it.carNumber, it.classId, it)
+                }.collect(Collectors.toList())
+            }
             val classCounts = mutableMapOf<String, Int>()
-            race.classLookup.keys.map { classCounts[it] = 1 }
+            synchronized(race.lock) {
+                race.classLookup.keys.map { classCounts[it] = 1 }
+            }
             var prev:CarPosition? = null
             raceOrder.withIndex().forEach {
                 it.value.position = it.index + 1
@@ -135,7 +188,7 @@ class RaceView internal constructor(private val raceOrder: Map<String, CarPositi
                     }
                 }
             }
-            return RaceView(raceOrder.map { it.carNumber to it }.toMap())
+            return RaceView(race.raceStatus, raceOrder.map { it.carNumber to it }.toMap())
         }
     }
 
@@ -146,6 +199,11 @@ class CarPosition(val carNumber: String, val classId: String?, internal val orig
     internal var position:Int = 0
     internal var positionInClass: Int = 0
     internal var carAhead: CarPosition? = null
+    // we copy these over from the origin to prevent us picking up changing data
+    internal val lapsCompleted = origin.lapsCompleted
+    internal val lastLapTime = origin.lastLapTime
+    internal var fastestLap = origin.fastestLap
+    internal var fastestLapTime = origin.fastestLapTime
 
     /**
     produce a human-readable format of the gap. This could be in the form:
@@ -205,17 +263,10 @@ class CarPosition(val carNumber: String, val classId: String?, internal val orig
         }
     }
 
-    fun getLapsCompleted(): Int {
-        return origin.lapsCompleted
-    }
-
-    fun getLastLapTime(): Double {
-        return origin.lastLapTime
-    }
-
 }
 
 enum class PositionEnum(val value:Int) {
     OVERALL(1),
     IN_CLASS(2)
 }
+

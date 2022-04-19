@@ -69,7 +69,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
                 val trackCode = raceTuple.split(":").first()
                 val raceId = raceTuple.split(":").last()
                 if (trackCode.isNotEmpty() && raceId.isNotEmpty()) {
-                    _connectRaceData(trackCode, raceId)
+                    activeMap[Handle(trackCode, raceId)] = _connectRaceData(trackCode, raceId)
                 }
             }
         }
@@ -149,12 +149,23 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         val streamUrl = raceDataSource.connect()
         log.info("launching thread to run $raceId @ $trackCode")
         val jobId = GlobalScope.launch(newSingleThreadContext("thread-${trackCode}")) {
+            val newRace = RaceOrder()
+            raceMap[trackCode] = newRace
             raceDataSource.stream(
                 streamUrl,
-                DataSourceHandler(RaceOrder(), trackCode, getConnectedCars(trackCode))
+                DataSourceHandler(newRace, trackCode, getConnectedCars(trackCode))
             )
+            // finished here
+            log.info("removing race data as thread has finished")
+            raceMap.remove(trackCode)
         }
         return jobId
+    }
+
+    internal val raceMap = mutableMapOf<String, RaceOrder>()
+
+    fun getRaceView(trackCode: String) : RaceView? {
+        return raceMap[trackCode]?.createRaceView()
     }
 
     override suspend fun listLiveRaces(request: Empty): MeringueAdmin.LiveRaceListResponse {
@@ -204,6 +215,8 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
             log.info("race is active, performing cancel")
             RaceDisconnectEvent(handle.trackCode).emit()
             activeMap[handle]?.cancel()
+            log.info("removing race data")
+            raceMap.remove(handle.trackCode)
         } else {
             log.info("request ignored ... no such running race")
         }

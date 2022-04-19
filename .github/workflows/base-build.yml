@@ -26,7 +26,10 @@ jobs:
         run: |
              rm src/main/proto/*.proto && \
              ln -s `pwd`/protos/lemon-pi.proto src/main/proto/lemon-pi.proto && \
-             ln -s `pwd`/protos/meringue-admin.proto src/main/proto/meringue-admin.proto
+             ln -s `pwd`/protos/meringue-admin.proto src/main/proto/meringue-admin.proto && \
+             ln -s `pwd`/protos/meringue-admin.proto src/main/proto/race-flag-status.proto && \
+             ln -s `pwd`/protos/meringue-admin.proto src/main/proto/car-data.proto
+
       - name: Validate Gradle
         uses: gradle/wrapper-validation-action@v1
       - name: Build with Gradle

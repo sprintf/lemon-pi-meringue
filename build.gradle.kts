@@ -12,8 +12,8 @@ plugins {
 	application
 	id("org.springframework.boot") version "2.5.7"
 	id("io.spring.dependency-management") version "1.0.11.RELEASE"
-	kotlin("jvm") version "1.5.31"
-	kotlin("plugin.spring") version "1.5.31"
+	kotlin("jvm")
+	kotlin("plugin.spring")
 }
 
 group = "com.normtronix"

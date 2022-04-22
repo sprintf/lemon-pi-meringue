@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import com.google.protobuf.gradle.*
 import org.springframework.boot.gradle.tasks.bundling.BootJar
 
 val protobufVersion: String by project
@@ -15,7 +14,6 @@ plugins {
 	id("io.spring.dependency-management") version "1.0.11.RELEASE"
 	kotlin("jvm") version "1.5.31"
 	kotlin("plugin.spring") version "1.5.31"
-	id("com.google.protobuf") version "0.8.18"
 }
 
 group = "com.normtronix"
@@ -30,6 +28,8 @@ extra["springCloudGcpVersion"] = "2.0.6"
 extra["springCloudVersion"] = "2020.0.4"
 
 dependencies {
+
+	implementation(project(":lemon-pi-protos"))
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-security")
@@ -59,28 +59,6 @@ dependencyManagement {
 	imports {
 		mavenBom("com.google.cloud:spring-cloud-gcp-dependencies:${property("springCloudGcpVersion")}")
 		mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
-	}
-}
-
-protobuf {
-	protoc {
-		artifact = "com.google.protobuf:protoc:${protobufVersion}"
-	}
-	plugins {
-		id("grpc") {
-			artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
-		}
-		id ("grpckt") {
-			artifact = "io.grpc:protoc-gen-grpc-kotlin:0.1.5"
-		}
-	}
-	generateProtoTasks {
-		all().forEach {
-			it.plugins {
-				id("grpc")
-				id("grpckt")
-			}
-		}
 	}
 }
 

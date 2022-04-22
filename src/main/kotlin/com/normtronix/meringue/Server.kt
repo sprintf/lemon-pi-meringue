@@ -45,6 +45,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         // todo : make sure that the car is the one sending from itself
         log.info("car ${currentTrack}/${currentCar} sending message")
         getSendChannel(currentTrack, currentCar, currentKey, toPitIndex).send(request)
+        introspectToPitMessage(currentTrack, currentCar, request)
         return Empty.getDefaultInstance()
     }
 
@@ -55,6 +56,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         val targetCar = extractTargetCar(request)
         log.info("pit ${currentTrack}/${requestDetails.carNum} sending message to $targetCar")
         getSendChannel(currentTrack, targetCar, currentKey, toCarIndex).send(request)
+        introspectToCarMessage(currentTrack, targetCar, request)
         return Empty.getDefaultInstance()
     }
 
@@ -75,6 +77,26 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         // todo : this needs more thought
         // CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
         return getSendChannel(currentTrack, request.carNumber, currentKey, toPitIndex).consumeAsFlow()
+    }
+
+    private suspend fun introspectToPitMessage(trackCode: String,
+                                       carNumber: String,
+                                       request: LemonPi.ToPitMessage) {
+        if (request.hasTelemetry()) {
+            CarTelemetryEvent(
+                trackCode,
+                carNumber,
+                request.telemetry.coolantTemp,
+                request.telemetry.fuelRemainingPercent).emit()
+        }
+    }
+
+    private suspend fun introspectToCarMessage(trackCode: String,
+                                               carNumber: String,
+                                               request: LemonPi.ToCarMessage) {
+        if (request.hasMessage()) {
+            DriverMessageEvent(trackCode, carNumber, request.message.text).emit()
+        }
     }
 
     private fun <T>getSendChannel(
@@ -229,8 +251,8 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
 
     private fun convertFlagStatus(statusString: String) =
         when (statusString) {
-            "" -> { LemonPi.RaceFlagStatus.UNKNOWN }
-            else -> LemonPi.RaceFlagStatus.valueOf(statusString.trim().uppercase())
+            "" -> { RaceFlagStatusOuterClass.RaceFlagStatus.UNKNOWN }
+            else -> RaceFlagStatusOuterClass.RaceFlagStatus.valueOf(statusString.trim().uppercase())
         }
 
 }

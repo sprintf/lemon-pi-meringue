@@ -126,3 +126,25 @@ class RaceDisconnectEvent(
     }
 }
 
+class CarTelemetryEvent(
+    val trackCode: String,
+    val carNumber: String,
+    val coolantTemp: Int,
+    val fuelRemainingPercent: Int
+) : Event() {
+
+    override fun toString(): String {
+        return "CarTelemetryEvent : $carNumber ($trackCode) coolant=$coolantTemp"
+    }
+}
+
+class DriverMessageEvent(
+    val trackCode: String,
+    val carNumber: String,
+    val message: String
+): Event() {
+
+    override fun toString(): String {
+        return "DriverMessageEvent : $carNumber ($trackCode)"
+    }
+}

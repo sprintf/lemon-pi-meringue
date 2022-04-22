@@ -1,6 +1,6 @@
 package com.normtronix.meringue.racedata
 
-import com.normtronix.meringue.LemonPi
+import com.normtronix.meringue.RaceFlagStatusOuterClass
 import com.normtronix.meringue.event.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
@@ -71,11 +71,11 @@ internal class DataSourceHandlerTest {
     fun emptyRaceStatusEvent() {
         runBlocking {
             val e = RaceStatusEvent("thill","yellow")
-            val flagStatus = LemonPi.RaceFlagStatus.valueOf(e.flagStatus.trim().uppercase())
-            assertEquals(LemonPi.RaceFlagStatus.YELLOW, flagStatus)
+            val flagStatus = RaceFlagStatusOuterClass.RaceFlagStatus.valueOf(e.flagStatus.trim().uppercase())
+            assertEquals(RaceFlagStatusOuterClass.RaceFlagStatus.YELLOW, flagStatus)
             val emptyStatus = RaceStatusEvent("thill","      ")
             assertThrows(IllegalArgumentException::class.java) {
-                LemonPi.RaceFlagStatus.valueOf(emptyStatus.flagStatus.trim().uppercase())
+                RaceFlagStatusOuterClass.RaceFlagStatus.valueOf(emptyStatus.flagStatus.trim().uppercase())
             }
         }
     }

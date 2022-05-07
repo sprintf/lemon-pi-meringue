@@ -47,7 +47,7 @@ class RaceOrder {
             if (other.lastLapTimestamp == 0L) {
                 return 1
             }
-            return (other.lastLapTimestamp - this.lastLapTimestamp).toInt()
+            return (this.lastLapTimestamp - other.lastLapTimestamp).toInt()
         }
     }
 
@@ -228,7 +228,7 @@ class CarPosition(val carNumber: String, val classId: String?, internal val orig
 
         var secondsDiff:Long = -1
         if (carAhead.origin.lastLapTimestamp > 0 && this.origin.lastLapTimestamp > 0) {
-            secondsDiff = (carAhead.origin.lastLapTimestamp - this.origin.lastLapTimestamp) / 1000
+            secondsDiff = (this.origin.lastLapTimestamp - carAhead.origin.lastLapTimestamp) / 1000
         }
 
         if (carAhead.origin.lapsCompleted >= 0 && this.origin.lapsCompleted >= 0) {

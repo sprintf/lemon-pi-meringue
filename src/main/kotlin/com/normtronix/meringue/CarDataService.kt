@@ -6,9 +6,9 @@ import com.normtronix.meringue.event.*
 import com.normtronix.meringue.racedata.InvalidRaceId
 import com.normtronix.meringue.racedata.PositionEnum
 import io.grpc.Status
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import net.devh.boot.grpc.server.advice.GrpcExceptionHandler
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
@@ -25,7 +25,7 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
     @Autowired
     lateinit var adminService: AdminService
 
-    private val channelMap = mutableMapOf<String, Channel<CarData.CarDataResponse>>()
+    private val channelMap = mutableMapOf<String, MutableSharedFlow<CarData.CarDataResponse>>()
 
     override fun afterPropertiesSet() {
         Events.register(CarTelemetryEvent::class.java, this)
@@ -53,16 +53,11 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
     }
 
     override fun streamCarData(request: CarData.CarDataRequest): Flow<CarData.CarDataResponse> {
-        // if message happens then rebuild message and resend
-        // if telemetry happens then rebuild and resend
-        // if lap completed happens then rebuild and resend
         val key = buildKey(request.trackCode, request.carNumber)
-        // todo we need a list of these .. we send to everything on the list?
-        // or have one for all?
-        channelMap[key] = Channel(10)
+        val baseFlow = channelMap.getOrPut(key) { MutableSharedFlow() }
         // start tracking this car
         CarConnectedEvent(request.trackCode, request.carNumber).emitAsync()
-        return channelMap[key]!!.consumeAsFlow()
+        return baseFlow.asSharedFlow()
     }
 
     internal fun buildCarData(trackCode: String, carNumber: String): CarData.CarDataResponse {
@@ -114,15 +109,15 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
         if (e is DriverMessageEvent) {
             val key = buildKey(e.trackCode, e.carNumber)
             driverMessageMap.put(buildKey(e.trackCode, e.carNumber), e)
-            channelMap[key]?.send(buildCarData(e.trackCode, e.carNumber))
+            channelMap[key]?.emit(buildCarData(e.trackCode, e.carNumber))
         } else if (e is CarTelemetryEvent) {
             val key = buildKey(e.trackCode, e.carNumber)
             telemetryMap.put(buildKey(e.trackCode, e.carNumber), e)
-            channelMap[key]?.send(buildCarData(e.trackCode, e.carNumber))
+            channelMap[key]?.emit(buildCarData(e.trackCode, e.carNumber))
         } else if (e is LapCompletedEvent) {
             val key = buildKey(e.trackCode, e.carNumber)
             log.info("sending lap completed for car ${e.carNumber}")
-            channelMap[key]?.send(buildCarData(e.trackCode, e.carNumber))
+            channelMap[key]?.emit(buildCarData(e.trackCode, e.carNumber))
         }
     }
 

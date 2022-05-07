@@ -65,18 +65,22 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
         // log.info(view.toString())
         view.lookupCar(carNumber)?.let {
             val carAhead = it.getCarAhead(PositionEnum.IN_CLASS) ?: it.getCarAhead(PositionEnum.OVERALL)
-            val bldr = CarData.CarDataResponse.newBuilder()
-                .setCarNumber(it.carNumber)
-                .setFlagStatus(convertStatus(view.raceStatus))
-                .setLapCount(it.lapsCompleted)
-                .setPosition(it.position)
-                .setPositionInClass(it.positionInClass)
-                .setLastLapTime(it.lastLapTime.toFloat())
-                .setGap(it.gap(carAhead))
-                .setFastestLap(it.fastestLap)
-                .setFastestLapTime(it.fastestLapTime.toFloat())
+            val bldr = CarData.CarDataResponse.newBuilder().apply {
+                this.carNumber = it.carNumber
+                this.flagStatus = convertStatus(view.raceStatus)
+                this.lapCount = it.lapsCompleted
+                this.position = it.position
+                this.positionInClass = it.positionInClass
+                this.lastLapTime = it.lastLapTime.toFloat()
+                this.gap = it.gap((carAhead))
+                this.fastestLap = it.fastestLap
+                this.fastestLapTime = it.fastestLapTime.toFloat()
+                it.lastLapAbsTimestamp?.let {
+                    this.timestamp = it.toEpochMilli()
+                }
+            }
             carAhead?.let { ahead ->
-                bldr.setCarAhead(ahead.carNumber)
+                bldr.carAhead = ahead.carNumber
             }
 
             val key = buildKey(trackCode, carNumber)

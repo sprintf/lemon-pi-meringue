@@ -3,7 +3,6 @@ package com.normtronix.meringue.racedata
 import com.normtronix.meringue.event.RaceStatusEvent
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.time.Duration
 import java.time.Instant
 import java.util.stream.Collectors
 
@@ -25,10 +24,13 @@ class RaceOrder {
 
         // float, seconds and parts of seconds
         var lastLapTime = 0.0
-        var lastLapTimestamp: Instant? = null
+        // this is relative to the start of the race, and accurate to the millisecond
+        var lastLapTimestamp = 0L
         // float, seconds and int lap
         var fastestLapTime = 0.0
         var fastestLap = 0
+        // this is an epoch time and accurate to the nearest second
+        var lastLapAbsTimestamp: Instant? = null
 
         override fun compareTo(other: Car): Int {
             // todo : base this on nullable field rather than negativelable field
@@ -39,14 +41,13 @@ class RaceOrder {
             if (lapDiff != 0) {
                 return lapDiff
             }
-            if (this.lastLapTimestamp == null) {
+            if (this.lastLapTimestamp == 0L) {
                 return -1
             }
-            if (other.lastLapTimestamp == null) {
+            if (other.lastLapTimestamp == 0L) {
                 return 1
             }
-            val timestampDiff = Duration.between(other.lastLapTimestamp, this.lastLapTimestamp)
-            return timestampDiff.toMillis().toInt()
+            return (other.lastLapTimestamp - this.lastLapTimestamp).toInt()
         }
     }
 
@@ -78,7 +79,8 @@ class RaceOrder {
         numberLookup[carNumber]?.let {
             it.position = position
             it.lapsCompleted = lapCount
-            it.lastLapTimestamp = Instant.ofEpochMilli((timestamp * 1000).toLong())
+            // this is millis relative to start of race
+            it.lastLapTimestamp = (timestamp * 1000).toLong()
         }
     }
 
@@ -92,6 +94,12 @@ class RaceOrder {
         numberLookup[carNumber]?.let {
             it.fastestLap = fastestLap
             it.fastestLapTime = lapTimeSeconds
+        }
+    }
+
+    fun updateAbsoluteTimestamp(carNumber: String, timestamp: Long) {
+        numberLookup[carNumber]?.let {
+            it.lastLapAbsTimestamp = Instant.ofEpochMilli(timestamp)
         }
     }
 
@@ -204,6 +212,7 @@ class CarPosition(val carNumber: String, val classId: String?, internal val orig
     internal val lastLapTime = origin.lastLapTime
     internal var fastestLap = origin.fastestLap
     internal var fastestLapTime = origin.fastestLapTime
+    internal var lastLapAbsTimestamp = origin.lastLapAbsTimestamp
 
     /**
     produce a human-readable format of the gap. This could be in the form:
@@ -218,8 +227,8 @@ class CarPosition(val carNumber: String, val classId: String?, internal val orig
         }
 
         var secondsDiff:Long = -1
-        if (carAhead.origin.lastLapTimestamp != null && this.origin.lastLapTimestamp != null) {
-            secondsDiff = Duration.between(carAhead.origin.lastLapTimestamp, this.origin.lastLapTimestamp).toSeconds()
+        if (carAhead.origin.lastLapTimestamp > 0 && this.origin.lastLapTimestamp > 0) {
+            secondsDiff = (carAhead.origin.lastLapTimestamp - this.origin.lastLapTimestamp) / 1000
         }
 
         if (carAhead.origin.lapsCompleted >= 0 && this.origin.lapsCompleted >= 0) {

@@ -26,7 +26,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         try {
             val line = rawLine.trim()
             if (line.isNotEmpty()) {
-                // log.info("rcv >> $line")
+                log.info("rcv >> $line")
                 val bits = line.split(",")
                 if (bits.isNotEmpty()) {
                     when (bits[0]) {
@@ -76,8 +76,16 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                                 leaderboard.updateLastLap(carNumber, convertToSeconds(bits[2]))
                             }
                         }
+                        // not sure if this shows up when running in the cloud
+                        "\$RMLT" -> {
+                            if (bits.size == 3) {
+                                val carNumber = bits[1].trim('"')
+                                val timestamp = bits[2].trim().toLong()
+                                leaderboard.updateAbsoluteTimestamp(carNumber, timestamp)
+                            }
+                        }
                         // we choose to ignore RMHL messages as we do not receive them for some
-                        // reason when we run in GCP
+                        // reason when we run in GCP ... still very confused as to why
                         else -> {}
                     }
                 }

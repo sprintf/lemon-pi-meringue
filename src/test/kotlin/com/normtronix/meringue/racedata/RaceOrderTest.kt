@@ -33,8 +33,8 @@ internal class RaceOrderTest {
         val race = RaceOrder()
         race.addCar("701", "")
         race.addCar("55", "")
-        race.updatePosition("701", 1, 1, 2000.0)
-        race.updatePosition("55", 2, 1, 2001.0)
+        race.updatePosition("701", 1, 1, 2.0)
+        race.updatePosition("55", 2, 1, 2.1)
         assertRaceOrder(race.createRaceView(), "701", "55")
     }
 
@@ -43,8 +43,8 @@ internal class RaceOrderTest {
         val race = RaceOrder()
         race.addCar("701", "")
         race.addCar("55", "")
-        race.updatePosition("701", 1, -6, 2000.0)
-        race.updatePosition("55", 1, 1, 2001.0)
+        race.updatePosition("701", 1, -6, 2.0)
+        race.updatePosition("55", 1, 1, 2.1)
         assertRaceOrder(race.createRaceView(), "55", "701")
     }
 
@@ -54,11 +54,24 @@ internal class RaceOrderTest {
         race.addCar("10", "")
         race.addCar("701", "")
         race.addCar("55", "")
-        race.updatePosition("55", 1, -6, 2000.0)
+        race.updatePosition("55", 1, -6, 2.0)
         assertRaceOrder(race.createRaceView(), "10", "701", "55")
-        race.updatePosition("701", 1, 1, 2001.0)
-        race.updatePosition("10", 2, 1, 2002.0)
+        race.updatePosition("701", 1, 1, 2.1)
+        race.updatePosition("10", 2, 1, 2.2)
         assertRaceOrder(race.createRaceView(), "701", "10", "55")
+    }
+
+    @Test
+    fun testGap() {
+        val race = RaceOrder()
+        race.addCar("10", "")
+        race.addCar("701", "")
+        var view = race.createRaceView()
+        assertEquals("-", view.lookupCar("701")?.gap(view.lookupCar("10")))
+        race.updatePosition("701", 1, 5, 2.0)
+        race.updatePosition("10", 2, 5, 4.0)
+        view = race.createRaceView()
+        assertEquals("2s", view.lookupCar("10")?.gap(view.lookupCar("701")))
     }
 
     @Test

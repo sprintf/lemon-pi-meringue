@@ -1,6 +1,7 @@
 package com.normtronix.meringue
 
 import com.google.protobuf.Empty
+import com.normtronix.meringue.event.LapCompletedEvent
 import com.normtronix.meringue.event.RaceDisconnectEvent
 import com.normtronix.meringue.racedata.*
 import io.grpc.Status
@@ -60,6 +61,9 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
 
     @Value("\${log.racedata:String}")
     lateinit var logRaceData:String
+
+    @Value("\${lap-completed.delay}")
+    lateinit var delayLapCompletedEvent:String
 
     var raceDataSourceFactoryFn : (String) -> DataSource1 = fun(x:String) : DataSource1 { return DataSource1(x) }
 
@@ -153,7 +157,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
             raceMap[trackCode] = newRace
             raceDataSource.stream(
                 streamUrl,
-                DataSourceHandler(newRace, trackCode, getConnectedCars(trackCode))
+                DataSourceHandler(newRace, trackCode, delayLapCompletedEvent.toLong(), getConnectedCars(trackCode))
             )
             // finished here
             log.info("removing race data as thread has finished")

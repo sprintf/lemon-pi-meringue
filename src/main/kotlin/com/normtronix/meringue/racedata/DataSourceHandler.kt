@@ -1,7 +1,7 @@
 package com.normtronix.meringue.racedata
 
 import com.normtronix.meringue.event.*
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.LocalTime
@@ -10,7 +10,9 @@ import java.time.format.DateTimeParseException
 
 class DataSourceHandler(private val leaderboard: RaceOrder,
                         val trackCode: String,
+                        val delayLapCompletedEvent: Long,
                         targetCarParam: Set<String>) : EventHandler {
+
 
     private val targetCars = targetCarParam.toMutableSet()
 
@@ -26,7 +28,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         try {
             val line = rawLine.trim()
             if (line.isNotEmpty()) {
-                log.info("rcv >> $line")
+                log.debug("rcv >> $line")
                 val bits = line.split(",")
                 if (bits.isNotEmpty()) {
                     when (bits[0]) {
@@ -57,9 +59,14 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                                 // if we get updates saying they completed null laps then ignore it
                                 bits[3].toIntOrNull()?.let {
                                     leaderboard.updatePosition(carNumber, bits[1].toInt(), it, convertToSeconds(bits[4]))
-                                    val view = leaderboard.createRaceView()
-                                    view.lookupCar(carNumber)?.let {
-                                        constructLapCompleteEvent(view, it)
+                                    coroutineScope {
+                                        launch {
+                                            delay(delayLapCompletedEvent)
+                                            val view = leaderboard.createRaceView()
+                                            view.lookupCar(carNumber)?.let {
+                                                constructLapCompleteEvent(view, it)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -76,16 +83,9 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                                 leaderboard.updateLastLap(carNumber, convertToSeconds(bits[2]))
                             }
                         }
-                        // not sure if this shows up when running in the cloud
-                        "\$RMLT" -> {
-                            if (bits.size == 3) {
-                                val carNumber = bits[1].trim('"')
-                                val timestamp = bits[2].trim().toLong()
-                                leaderboard.updateAbsoluteTimestamp(carNumber, timestamp)
-                            }
-                        }
-                        // we choose to ignore RMHL messages as we do not receive them for some
-                        // reason when we run in GCP ... still very confused as to why
+                        // we choose to ignore RMHL/RMLT messages as we do not receive them for some
+                        // reason when we run in GCP ... still very confused as to why.
+                        // we do get RMLT at start of race but not during it
                         else -> {}
                     }
                 }

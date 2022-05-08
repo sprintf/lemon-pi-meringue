@@ -12,7 +12,7 @@ internal class DataSourceHandlerTest {
 
     @Test
     fun testTimeParsing() {
-        val ds = DataSourceHandler(RaceOrder(), "thil", setOf())
+        val ds = DataSourceHandler(RaceOrder(), "thil", 0, setOf())
         assertEquals(135.0, ds.convertToSeconds("00:02:15"))
         assertEquals(3735.0, ds.convertToSeconds("01:02:15"))
         assertEquals(135.999, ds.convertToSeconds("00:02:15.999"))
@@ -34,7 +34,7 @@ internal class DataSourceHandlerTest {
     fun parseFile() {
         val leaderboard = RaceOrder()
 
-        val ds = DataSourceHandler(leaderboard, "thil", setOf())
+        val ds = DataSourceHandler(leaderboard, "thil", 0, setOf())
         val fr = BufferedReader(FileReader("src/test/resources/test-file.dat"))
 
         val th = TestHandler()
@@ -87,7 +87,7 @@ internal class DataSourceHandlerTest {
         val rawLine3 = "\$RMHL \"62\" \"11\" \"3\" \"00:01:28.671\" \"Green \" \"00:16:34.018\""
 
         val leaderboard = RaceOrder()
-        val ds = DataSourceHandler(leaderboard, "thil", setOf())
+        val ds = DataSourceHandler(leaderboard, "thil", 0, setOf())
 
         leaderboard.addCar("23", "", "A")
         leaderboard.addCar("22", "", "A")

@@ -81,6 +81,8 @@ class RaceOrder {
             it.lapsCompleted = lapCount
             // this is millis relative to start of race
             it.lastLapTimestamp = (timestamp * 1000).toLong()
+            // this is now
+            it.lastLapAbsTimestamp = Instant.now()
         }
     }
 
@@ -94,12 +96,6 @@ class RaceOrder {
         numberLookup[carNumber]?.let {
             it.fastestLap = fastestLap
             it.fastestLapTime = lapTimeSeconds
-        }
-    }
-
-    fun updateAbsoluteTimestamp(carNumber: String, timestamp: Long) {
-        numberLookup[carNumber]?.let {
-            it.lastLapAbsTimestamp = Instant.ofEpochMilli(timestamp)
         }
     }
 

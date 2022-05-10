@@ -46,7 +46,7 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
     }
 
     fun buildContext(authToken: String, trackMetaDataLoader: TrackMetaDataLoader): RequestDetails? {
-        log.info("processing $authToken")
+        log.debug("processing $authToken")
         if (!authToken.contains(':')) {
             return null
         }

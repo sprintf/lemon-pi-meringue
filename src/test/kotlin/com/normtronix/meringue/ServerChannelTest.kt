@@ -14,19 +14,20 @@ internal class ServerChannelTest {
             val s = Server()
             val collector = PitMessageCollector(s, "99")
             coroutineScope {
-                launch(requestor.asContextElement(value= RequestDetails("thil", "99", "foo"))) {
+                val j1 = launch(requestor.asContextElement(value= RequestDetails("thil", "99", "foo"))) {
                     s.sendMessageFromCar(createPittingMessage("99", 1))
                 }
-                launch(requestor.asContextElement(value=RequestDetails("thil", "99-pit", "foo"))) {
+                val j2 = launch(requestor.asContextElement(value=RequestDetails("thil", "99-pit", "foo"))) {
                     collector.getMessages()
                 }
-                println("haha !")
-                launch(requestor.asContextElement(value=RequestDetails("thil", "99", "foo"))) {
+                val j3 = launch(requestor.asContextElement(value=RequestDetails("thil", "99", "foo"))) {
                     s.sendMessageFromCar(createPittingMessage("99", 2))
                 }
                 launch {
                     delay(200)
-                    s.closeChannels()
+                    j1.cancel()
+                    j2.cancel()
+                    j3.cancel()
                 }
             }
             assertEquals(2, collector.messages.size)
@@ -41,19 +42,20 @@ internal class ServerChannelTest {
             val s = Server()
             val collector = CarMessageCollector(s, "99")
             coroutineScope {
-                launch(requestor.asContextElement(value = RequestDetails("thil", "99-pit", "foo"))) {
+                val j1 = launch(requestor.asContextElement(value = RequestDetails("thil", "99-pit", "foo"))) {
                     s.sendMessageFromPits(createDriverMessage("99", 1))
                 }
-                launch(requestor.asContextElement(value = RequestDetails("thil", "99", "foo"))) {
+                val j2 = launch(requestor.asContextElement(value = RequestDetails("thil", "99", "foo"))) {
                     collector.getMessages()
                 }
-                println("haha !")
-                launch(requestor.asContextElement(value = RequestDetails("thil", "99-pit", "foo"))) {
+                val j3 = launch(requestor.asContextElement(value = RequestDetails("thil", "99-pit", "foo"))) {
                     s.sendMessageFromPits(createDriverMessage("99", 2))
                 }
                 launch {
                     delay(500)
-                    s.closeChannels()
+                    j1.cancel()
+                    j2.cancel()
+                    j3.cancel()
                 }
             }
             assertEquals(2, collector.messages.size)

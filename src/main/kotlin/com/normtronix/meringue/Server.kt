@@ -5,8 +5,10 @@ import com.normtronix.meringue.ContextInterceptor.Companion.requestor
 import com.normtronix.meringue.event.*
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -44,7 +46,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         val currentKey = requestDetails.key
         // todo : make sure that the car is the one sending from itself
         log.info("car ${currentTrack}/${currentCar} sending message")
-        getSendChannel(currentTrack, currentCar, currentKey, toPitIndex).send(request)
+        getSendChannel(currentTrack, currentCar, currentKey, toPitIndex).emit(request)
         introspectToPitMessage(currentTrack, currentCar, request)
         return Empty.getDefaultInstance()
     }
@@ -55,7 +57,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         val currentKey = requestDetails.key
         val targetCar = extractTargetCar(request)
         log.info("pit ${currentTrack}/${requestDetails.carNum} sending message to $targetCar")
-        getSendChannel(currentTrack, targetCar, currentKey, toCarIndex).send(request)
+        getSendChannel(currentTrack, targetCar, currentKey, toCarIndex).emit(request)
         introspectToCarMessage(currentTrack, targetCar, request)
         return Empty.getDefaultInstance()
     }
@@ -66,7 +68,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         val currentKey = requestDetails.key
         log.info("receiving messages for car ${request.carNumber} @ $currentTrack")
         CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
-        return getSendChannel(currentTrack, request.carNumber, currentKey, toCarIndex).consumeAsFlow()
+        return getSendChannel(currentTrack, request.carNumber, currentKey, toCarIndex).asSharedFlow()
     }
 
     override fun receiveCarMessages(request: LemonPi.CarNumber): Flow<LemonPi.ToPitMessage> {
@@ -76,7 +78,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         log.info("receiving car messages for ${request.carNumber} @ $currentTrack")
         // todo : this needs more thought
         // CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
-        return getSendChannel(currentTrack, request.carNumber, currentKey, toPitIndex).consumeAsFlow()
+        return getSendChannel(currentTrack, request.carNumber, currentKey, toPitIndex).asSharedFlow()
     }
 
     private suspend fun introspectToPitMessage(trackCode: String,
@@ -104,13 +106,13 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         currentCar: String,
         currentKey: String,
         index: MutableMap<String, MutableMap<String, ChannelAndKey<T>>>
-    ): Channel<T> {
+    ): MutableSharedFlow<T> {
         if (!index.containsKey(currentTrack)) {
             index[currentTrack] = mutableMapOf()
         }
         if (!index[currentTrack]?.containsKey(currentCar)!!) {
             log.info("new channel created for recipient $currentCar")
-            val result = ChannelAndKey(Channel<T>(10), currentKey)
+            val result = ChannelAndKey(MutableSharedFlow<T>(1, 0, BufferOverflow.DROP_OLDEST), currentKey)
             index[currentTrack]?.set(currentCar, result)
             return result.channel
         } else {
@@ -119,9 +121,9 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                 throw MismatchedKeyException()
             }
             // the channel is already here ... but it may be toast
-            if (channelAndKey == null || channelAndKey.channel.isClosedForSend) {
+            if (channelAndKey == null) {
                 log.info("replacement channel created for recipient $currentCar")
-                val result = ChannelAndKey(Channel<T>(10), currentKey)
+                val result = ChannelAndKey(MutableSharedFlow<T>(1, 0, BufferOverflow.DROP_OLDEST), currentKey)
                 index[currentTrack]?.set(currentCar, result)
                 return result.channel
             }
@@ -148,11 +150,9 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     /*
      * get all the connected cars at a track ... useful for sending out yellow flags
      */
-    private fun getConnectedCarChannels(trackCode: String) :List<Channel<LemonPi.ToCarMessage>> {
+    private fun getConnectedCarChannels(trackCode: String) :List<MutableSharedFlow<LemonPi.ToCarMessage>> {
         val cars = toCarIndex[trackCode] ?: return emptyList()
-        return cars.values.filter {
-            !it.channel.isClosedForSend
-        }.map{
+        return cars.values.map{
             it.channel
         }.toList()
     }
@@ -160,31 +160,21 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     /*
      * get all the connected pits at a track ... useful for sending out yellow flags
      */
-    private fun getConnectedPitChannels(trackCode: String) :List<Channel<LemonPi.ToPitMessage>> {
+    private fun getConnectedPitChannels(trackCode: String) :List<MutableSharedFlow<LemonPi.ToPitMessage>> {
         val pits = toPitIndex[trackCode] ?: return emptyList()
-        return pits.values.filter {
-            !it.channel.isClosedForSend
-        }.map{
+        return pits.values.map{
             it.channel
         }.toList()
     }
 
     internal fun getConnectedCarNumbers(trackCode: String) :Set<String> {
         val cars = toCarIndex[trackCode] ?: return emptySet()
-        return cars.entries.filter {
-            !it.value.channel.isClosedForSend
-        }.map {
+        return cars.entries.map {
             it.key
         }.toSet()
     }
 
-    // test only
-    fun closeChannels() {
-        toPitIndex.values.forEach { it.values.forEach { c -> c.channel.close() }}
-        toCarIndex.values.forEach { it.values.forEach { c -> c.channel.close() }}
-    }
-
-    data class ChannelAndKey<T>(val channel: Channel<T>, val radioKey:String)
+    data class ChannelAndKey<T>(val channel: MutableSharedFlow<T>, val radioKey:String)
 
     companion object {
         val log: Logger = LoggerFactory.getLogger(Server::class.java)
@@ -204,11 +194,11 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                     .setFlagStatus(convertFlagStatus(e.flagStatus))
                     .build()
                 getConnectedCarChannels(e.trackCode).forEach {
-                    it.send(LemonPi.ToCarMessage.newBuilder().mergeRaceStatus(msg).build())
+                    it.emit(LemonPi.ToCarMessage.newBuilder().mergeRaceStatus(msg).build())
                     log.info("sent flag message to a car")
                 }
                 getConnectedPitChannels(e.trackCode).forEach {
-                    it.send(LemonPi.ToPitMessage.newBuilder().mergeRaceStatus(msg).build())
+                    it.emit(LemonPi.ToPitMessage.newBuilder().mergeRaceStatus(msg).build())
                     log.info("sent flag message to pits")
                 }
             }
@@ -231,18 +221,13 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                     .build()
                 getConnectedCarNumbers(e.trackCode).forEach {
                     if (it == msg.carNumber || it == msg.carAhead.carNumber) {
-                        toCarIndex[e.trackCode]?.get(it)?.channel?.send(
+                        toCarIndex[e.trackCode]?.get(it)?.channel?.emit(
                             LemonPi.ToCarMessage.newBuilder().mergeRacePosition(msg).build())
                         log.info("sent race position message to $it")
                         val pitChannel = toPitIndex[e.trackCode]?.get(it)?.channel
-                        when (pitChannel?.isClosedForSend) {
-                            true -> {}
-                            else -> {
-                                pitChannel?.send(
-                                    LemonPi.ToPitMessage.newBuilder().mergeRacePosition(msg).build()
-                                )
-                            }
-                        }
+                        pitChannel?.emit(
+                            LemonPi.ToPitMessage.newBuilder().mergeRacePosition(msg).build()
+                        )
                     }
                 }
             }

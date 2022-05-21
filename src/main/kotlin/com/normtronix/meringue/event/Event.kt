@@ -1,5 +1,6 @@
 package com.normtronix.meringue.event
 
+import com.normtronix.meringue.LemonPi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -146,5 +147,16 @@ class DriverMessageEvent(
 
     override fun toString(): String {
         return "DriverMessageEvent : $carNumber ($trackCode)"
+    }
+}
+
+class GpsPositionEvent(
+    val trackCode: String,
+    val carNumber: String,
+    val position: LemonPi.GpsPosition
+): Event() {
+
+    override fun toString(): String {
+        return "GpsEvent : $carNumber ($trackCode)"
     }
 }

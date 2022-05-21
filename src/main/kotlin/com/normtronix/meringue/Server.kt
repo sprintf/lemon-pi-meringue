@@ -82,14 +82,20 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     }
 
     private suspend fun introspectToPitMessage(trackCode: String,
-                                       carNumber: String,
-                                       request: LemonPi.ToPitMessage) {
+                                               carNumber: String,
+                                               request: LemonPi.ToPitMessage) {
         if (request.hasTelemetry()) {
             CarTelemetryEvent(
                 trackCode,
                 carNumber,
                 request.telemetry.coolantTemp,
                 request.telemetry.fuelRemainingPercent).emit()
+        } else if (request.hasPing()) {
+            GpsPositionEvent(
+                trackCode,
+                carNumber,
+                request.ping.gps
+            ).emit()
         }
     }
 

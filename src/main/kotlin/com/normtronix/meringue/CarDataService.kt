@@ -27,6 +27,8 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
 
     private val channelMap = mutableMapOf<String, MutableSharedFlow<CarData.CarDataResponse>>()
 
+    private val trackPositionMap = mutableMapOf<String, MutableSharedFlow<CarData.CarPositionDataResponse>>()
+
     override fun afterPropertiesSet() {
         Events.register(CarTelemetryEvent::class.java, this)
         Events.register(DriverMessageEvent::class.java, this)
@@ -60,6 +62,24 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
         return baseFlow.asSharedFlow()
     }
 
+    override fun streamCarPositionsAtTrack(request: CarData.CarPositionDataRequest): Flow<CarData.CarPositionDataResponse> {
+        val trackFlow = trackPositionMap.getOrPut(request.trackCode) {
+            val result = MutableSharedFlow<CarData.CarPositionDataResponse>()
+            Events.register(GpsPositionEvent::class.java,
+                            object : EventHandler {
+                                override suspend fun handleEvent(e: Event) {
+                                    result.emit(CarData.CarPositionDataResponse.newBuilder().apply {
+                                        this.position = (e as GpsPositionEvent).position
+                                        this.carNumber = e.carNumber
+                                    }.build())
+                                }
+                            }
+            ) { e -> e is GpsPositionEvent && e.trackCode == request.trackCode }
+            result
+        }
+        return trackFlow.asSharedFlow()
+    }
+
     internal fun buildCarData(trackCode: String, carNumber: String): CarData.CarDataResponse {
         val view = adminService.getRaceView(trackCode) ?: throw InvalidRaceId()
         // log.info(view.toString())
@@ -75,8 +95,8 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
                 this.gap = it.gap((carAhead))
                 this.fastestLap = it.fastestLap
                 this.fastestLapTime = it.fastestLapTime.toFloat()
-                it.lastLapAbsTimestamp?.let {
-                    this.timestamp = it.toEpochMilli()
+                it.lastLapAbsTimestamp?.let { ts ->
+                    this.timestamp = ts.toEpochMilli()
                 }
             }
             carAhead?.let { ahead ->

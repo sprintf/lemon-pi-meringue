@@ -75,6 +75,68 @@ internal class RaceOrderTest {
     }
 
     @Test
+    fun testGapToFrontNoClass() {
+        val race = RaceOrder()
+        race.addCar("10", "")
+        race.addCar("701", "")
+        race.addCar("181", "")
+        var view = race.createRaceView()
+        assertEquals(0.0, view.lookupCar("701")?.gapToFront)
+        assertEquals(0.0, view.lookupCar("10")?.gapToFront)
+        assertEquals(0.0, view.lookupCar("181")?.gapToFront)
+        race.updatePosition("701", 1, 4, 2.0)
+        Thread.sleep(100)
+        race.updatePosition("10", 2, 4, 4.0)
+        Thread.sleep(100)
+        race.createRaceView()
+        race.updatePosition("701", 1, 5, 6.0)
+        Thread.sleep(100)
+        race.updatePosition("10", 2, 5, 8.0)
+        Thread.sleep(100)
+        race.updatePosition("181", 3, 4, 10.0)
+        view = race.createRaceView()
+        assertEquals(0.1, view.lookupCar("10")!!.gapToFront, 0.05)
+        assertEquals(0.4, view.lookupCar("181")!!.gapToFront, 0.05)
+        assertEquals(0.0, view.lookupCar("701")!!.gapToFront)
+        Thread.sleep(100)
+        race.updatePosition("181", 3, 5, 12.0)
+        view = race.createRaceView()
+        assertEquals(0.3, view.lookupCar("181")!!.gapToFront, 0.05)
+    }
+
+    @Test
+    fun testGapToFrontWithClass() {
+        val race = RaceOrder()
+        race.addClass("A", "A")
+        race.addClass("B", "B")
+        race.addCar("10", "", classId = "A")
+        race.addCar("701", "", classId = "B")
+        race.addCar("181", "", classId = "B")
+        var view = race.createRaceView()
+        assertEquals(0.0, view.lookupCar("701")?.gapToFront)
+        assertEquals(0.0, view.lookupCar("10")?.gapToFront)
+        assertEquals(0.0, view.lookupCar("181")?.gapToFront)
+        race.updatePosition("701", 1, 4, 2.0)
+        Thread.sleep(100)
+        race.updatePosition("10", 2, 4, 4.0)
+        Thread.sleep(100)
+        race.createRaceView()
+        race.updatePosition("701", 1, 5, 6.0)
+        Thread.sleep(100)
+        race.updatePosition("10", 2, 5, 8.0)
+        Thread.sleep(100)
+        race.updatePosition("181", 3, 4, 10.0)
+        view = race.createRaceView()
+        assertEquals(0.0, view.lookupCar("10")!!.gapToFront)
+        assertEquals(0.4, view.lookupCar("181")!!.gapToFront, 0.05)
+        assertEquals(0.0, view.lookupCar("701")!!.gapToFront)
+        Thread.sleep(100)
+        race.updatePosition("181", 3, 5, 12.0)
+        view = race.createRaceView()
+        assertEquals(0.3, view.lookupCar("181")!!.gapToFront, 0.05)
+    }
+
+    @Test
     fun testPositionInClassAndCarAhead() {
         val race = RaceOrder()
         race.addClass("A", "A Class")

@@ -4,6 +4,7 @@ import com.normtronix.meringue.event.RaceStatusEvent
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.stream.Collectors
 
 /**
@@ -83,6 +84,19 @@ class RaceOrder {
             it.lastLapTimestamp = (timestamp * 1000).toLong()
             // this is now
             it.lastLapAbsTimestamp = Instant.now()
+
+            // if this is the leader crossing the line, then update some first place lap times
+            if (position == 1) {
+                RaceOrderVisitor().visit(this) { car: CarPosition, pos: Int, posInClass: Int?, carClass, _: CarPosition? ->
+                    if (pos == 1 || posInClass == 1) {
+                        car.lastLapAbsTimestamp?.let { ts ->
+                            classLeaderLapTimestamps.getOrPut(carClass, { mutableMapOf() }).apply {
+                                this[car.lapsCompleted] = ts
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -121,6 +135,9 @@ class RaceOrder {
     }
 }
 
+// a map from class -> { lap number, timestamp }
+internal val classLeaderLapTimestamps : MutableMap<String, MutableMap<Int, Instant>> = mutableMapOf()
+
 data class RaceEntry(val carNumber: String, val teamDriverName: String) : Comparable<RaceEntry> {
 
     private fun isInt(s: String?) : Boolean {
@@ -139,6 +156,38 @@ data class RaceEntry(val carNumber: String, val teamDriverName: String) : Compar
 
 }
 
+
+class RaceOrderVisitor {
+
+    fun visit(race: RaceOrder, visitorCallback: (CarPosition, Int, Int?, String, CarPosition?) -> Unit): List<CarPosition> {
+        val raceOrder = synchronized(race.lock) {
+            race.numberLookup.values.stream().sorted().map {
+                CarPosition(it.carNumber, it.classId, it)
+            }.collect(Collectors.toList())
+        }
+        val classCounts = mutableMapOf<String, Int>()
+        synchronized(race.lock) {
+            race.classLookup.keys.map { classCounts[it] = 1 }
+        }
+
+        var prev:CarPosition? = null
+        raceOrder.withIndex().forEach {
+            val carClass = it.value.classId ?: ""
+
+            visitorCallback(it.value, it.index + 1, classCounts[carClass], carClass, prev)
+            prev = it.value
+
+            if (!classCounts.isEmpty()) {
+                classCounts[carClass]?.let { posInClass ->
+                    // it.value.positionInClass = posInClass
+                    classCounts[carClass] = posInClass + 1
+                }
+            }
+        }
+        return raceOrder
+    }
+
+}
 
 /**
  * An immutable view of the race at any point in time.
@@ -167,30 +216,21 @@ class RaceView internal constructor(val raceStatus: String, private val raceOrde
 
     companion object {
         fun build(race: RaceOrder): RaceView {
-            val raceOrder = synchronized(race.lock) {
-                race.numberLookup.values.stream().sorted().map {
-                    CarPosition(it.carNumber, it.classId, it)
-                }.collect(Collectors.toList())
-            }
-            val classCounts = mutableMapOf<String, Int>()
-            synchronized(race.lock) {
-                race.classLookup.keys.map { classCounts[it] = 1 }
-            }
-            var prev:CarPosition? = null
-            raceOrder.withIndex().forEach {
-                it.value.position = it.index + 1
-//                if (it.value.position != it.value.origin.position && it.value.origin.position > 0) {
-//                    println("thats odd : we think ${it.value.carNumber} is in pos ${it.index + 1} they think its in ${it.value.origin.position}")
-//                }
-                it.value.carAhead = prev
-                prev = it.value
-                val carClass = it.value.classId
-                if (!classCounts.isEmpty() && carClass != null) {
-                    classCounts[it.value.classId]?.let { posInClass ->
-                        it.value.positionInClass = posInClass
-                        classCounts[carClass] = posInClass + 1
+            val raceOrder = RaceOrderVisitor().visit(race)  { car: CarPosition, pos: Int, posInClass: Int?, carClass, prev: CarPosition? ->
+                car.position = pos
+                posInClass?.let {
+                    car.positionInClass = it
+                }
+                car.lastLapAbsTimestamp?.let { ts ->
+                    // if we can tell when the lead car in class crossed the line compared to us, then
+                    // store it in the gapToFront field
+                    classLeaderLapTimestamps[carClass]?.apply {
+                        this[car.lapsCompleted]?.apply {
+                            car.gapToFront = this.until(ts, ChronoUnit.MILLIS).toDouble() / 1000
+                        }
                     }
                 }
+                car.carAhead = prev
             }
             return RaceView(race.raceStatus, raceOrder.map { it.carNumber to it }.toMap())
         }
@@ -209,6 +249,7 @@ class CarPosition(val carNumber: String, val classId: String?, internal val orig
     internal var fastestLap = origin.fastestLap
     internal var fastestLapTime = origin.fastestLapTime
     internal var lastLapAbsTimestamp = origin.lastLapAbsTimestamp
+    internal var gapToFront = 0.0
 
     /**
     produce a human-readable format of the gap. This could be in the form:

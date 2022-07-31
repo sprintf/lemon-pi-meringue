@@ -100,6 +100,7 @@ class LapCompletedEvent(
     val positionInClass: Int,
     val ahead: String?,
     val gap: String,
+    val gapToFront: Double,
     val lastLapTime: Double,
     val flagStatus: String) : Event() {
 

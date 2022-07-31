@@ -224,6 +224,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                     .setLastLapTime(e.lastLapTime.toFloat())
                     .setCarAhead(ahead)
                     .setFlagStatus(convertFlagStatus(e.flagStatus))
+                    .setGapToFront(e.gapToFront.toFloat())
                     .build()
                 getConnectedCarNumbers(e.trackCode).forEach {
                     if (it == msg.carNumber || it == msg.carAhead.carNumber) {

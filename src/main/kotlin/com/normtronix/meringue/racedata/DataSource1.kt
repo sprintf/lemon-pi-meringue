@@ -17,14 +17,14 @@ import java.io.IOException
 import java.net.URL
 import java.time.Instant
 
-open class DataSource1(val raceId:String) : EventHandler {
+open class DataSource1(val raceId:String) : EventHandler, RaceDataSource {
 
     val provider = "race-monitor"
     val fields: MutableMap<String, String> = mutableMapOf()
     var stopped = false
-    var logRaceData = false
+    override var logRaceData = false
 
-    fun connect() : String {
+    override fun connect() : String {
         val now = Instant.now().epochSecond
         val jsonText = URL("https://api.${provider}.com/Info/WebRaceList?accountID=&seriesID=&raceID=${raceId}&styleID=&t=${now}").readText()
         val streamData = JsonParser.parseString(jsonText).asJsonObject
@@ -42,7 +42,9 @@ open class DataSource1(val raceId:String) : EventHandler {
         return "wss://${liveTimingHost}/instance/${fields["instance"]}/${fields["token"]}"
     }
 
-    suspend fun stream(streamUrl: String, handler: DataSourceHandler) {
+    override suspend fun stream(context: Any, baseHandler: BaseDataSourceHandler) {
+        val handler = baseHandler as DataSourceHandler
+        val streamUrl = context as String
         log.info("connecting to $streamUrl")
         File("logs").mkdir()
 

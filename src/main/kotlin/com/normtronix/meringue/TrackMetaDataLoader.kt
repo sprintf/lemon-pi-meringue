@@ -68,6 +68,7 @@ class TrackMetaDataLoader {
         var radio_sync_coords: String = ""
         var radio_sync_direction: String = ""
         var hidden: Boolean = false
+        var reversed: Boolean = false
     }
 
     companion object {

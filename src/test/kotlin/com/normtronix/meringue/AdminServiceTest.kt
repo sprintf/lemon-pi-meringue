@@ -46,7 +46,7 @@ internal class AdminServiceTest {
             val ds = DataSource1("12345")
             mockkObject(ds)
             every { ds.connect() } throws InvalidRaceId()
-            admin.raceDataSourceFactoryFn = fun(_: String): DataSource1 { return ds }
+            admin.raceDataSourceFactoryFn = fun(_:MeringueAdmin.RaceDataProvider, _: String): DataSource1 { return ds }
 
             runBlocking {
                 val request = MeringueAdmin.ConnectToRaceDataRequest.newBuilder()
@@ -65,11 +65,12 @@ internal class AdminServiceTest {
         mockTrackMetadata(admin)
         admin.lemonPiService = Server()
         admin.logRaceData = "false"
+        admin.delayLapCompletedEvent = "150"
         val ds = DataSource1("12345")
         mockkObject(ds)
         every { ds.connect() } returns "wss://localhost:443/foo.json"
         coEvery { ds.stream("wss://localhost:443/foo.json", any()) } returns Unit
-        admin.raceDataSourceFactoryFn = fun(_: String): DataSource1 { return ds }
+        admin.raceDataSourceFactoryFn = fun(_:MeringueAdmin.RaceDataProvider, _: String): DataSource1 { return ds }
 
         runBlocking {
             val request = MeringueAdmin.ConnectToRaceDataRequest.newBuilder()
@@ -166,5 +167,28 @@ internal class AdminServiceTest {
 
     @Test
     fun disconnectRaceData() {
+    }
+
+    @Test
+    fun testFuzzyComparator() {
+        val r1: MeringueAdmin.LiveRace = MeringueAdmin.LiveRace.newBuilder()
+            .setRaceId("foo1")
+            .setEventName("Yokohama Stuntin and Splodin")
+            .setTrackName("MSR Houston")
+            .build()
+
+        val r2: MeringueAdmin.LiveRace = MeringueAdmin.LiveRace.newBuilder()
+            .setRaceId("foo2")
+            .setEventName("Arse Freeze Apalooza")
+            .setTrackName("Sonoma Raceway")
+            .build()
+
+        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(emptyList())));
+        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("Houston"))));
+        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("houston"))));
+        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("houston something"))));
+        assertEquals(listOf(r2, r1), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("sonoma"))));
+        assertEquals(listOf(r2, r1), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("sonoma", "raceway"))));
+        
     }
 }

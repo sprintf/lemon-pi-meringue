@@ -46,6 +46,9 @@ dependencies {
 	implementation("io.grpc:grpc-protobuf:${grpcVersion}")
 	implementation("io.grpc:grpc-stub:${grpcVersion}")
 	implementation("io.grpc:grpc-kotlin-stub:0.1.5")
+
+	implementation("com.pusher:pusher-java-client:2.4.2")
+
 	compileOnly("jakarta.annotation:jakarta.annotation-api:1.3.5") // Java 9+ compatibility - Do NOT update to 2.0.0
 
 	implementation("org.yaml:snakeyaml:1.29")

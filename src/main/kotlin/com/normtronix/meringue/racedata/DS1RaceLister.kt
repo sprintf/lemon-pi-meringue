@@ -18,7 +18,7 @@ class DS1RaceLister {
         loadData()
     }
 
-    fun getLiveRaces(): Stream<RaceDataIndexItem> {
+    fun getLiveRaces(terms: List<String>): Stream<RaceDataIndexItem> {
         return eventList.values.stream()
     }
 

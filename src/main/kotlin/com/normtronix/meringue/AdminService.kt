@@ -1,7 +1,6 @@
 package com.normtronix.meringue
 
 import com.google.protobuf.Empty
-import com.normtronix.meringue.event.LapCompletedEvent
 import com.normtronix.meringue.event.RaceDisconnectEvent
 import com.normtronix.meringue.racedata.*
 import io.grpc.Status
@@ -42,7 +41,10 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
     lateinit var trackMetaData: TrackMetaDataLoader
 
     @Autowired
-    lateinit var raceLister: DS1RaceLister
+    lateinit var raceLister1: DS1RaceLister
+
+    @Autowired
+    lateinit var raceLister2: DS2RaceLister
 
     @Autowired
     lateinit var lemonPiService: Server
@@ -62,10 +64,17 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
     @Value("\${log.racedata:String}")
     lateinit var logRaceData:String
 
-    @Value("\${lap-completed.delay}")
+    @Value("\${lap-completed.delay:0}")
     lateinit var delayLapCompletedEvent:String
 
-    var raceDataSourceFactoryFn : (String) -> DataSource1 = fun(x:String) : DataSource1 { return DataSource1(x) }
+    var raceDataSourceFactoryFn : (MeringueAdmin.RaceDataProvider, String) -> RaceDataSource =
+        fun(provider: MeringueAdmin.RaceDataProvider, x:String) : RaceDataSource {
+            return when (provider) {
+                MeringueAdmin.RaceDataProvider.PROVIDER_RM -> DataSource1(x)
+                MeringueAdmin.RaceDataProvider.PROVIDER_RH -> DataSource2(x)
+                else -> throw RuntimeException("unknown race provider")
+            }
+        }
 
     override fun afterPropertiesSet() {
         if (forceRaceIds.isNotEmpty() && forceRaceIds[0].contains(":")) {
@@ -73,7 +82,8 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
                 val trackCode = raceTuple.split(":").first()
                 val raceId = raceTuple.split(":").last()
                 if (trackCode.isNotEmpty() && raceId.isNotEmpty()) {
-                    activeMap[Handle(trackCode, raceId)] = _connectRaceData(trackCode, raceId)
+                    activeMap[Handle(trackCode, raceId)] =
+                        _connectRaceData(trackCode, raceId, MeringueAdmin.RaceDataProvider.PROVIDER_RM)
                 }
             }
         }
@@ -114,9 +124,9 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
     }
 
     override suspend fun connectToRaceData(request: MeringueAdmin.ConnectToRaceDataRequest): MeringueAdmin.RaceDataConnectionResponse {
-        request.provider // should be RM
+        request.provider // should be RM or RH
         request.trackCode // should be valid
-        request.providerId // should be int for RM
+        request.providerId // should be int for RM // its a long string for RH
         trackMetaData.validateTrackCode(request.trackCode)
 
         // next see if theres a connection already
@@ -130,7 +140,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
                 .build()
         }
 
-        val jobId = _connectRaceData(request.trackCode, request.providerId)
+        val jobId = _connectRaceData(request.trackCode, request.providerId, request.provider)
         activeMap[key] = jobId
         log.info("returning with result for race data stream $key")
         return MeringueAdmin.RaceDataConnectionResponse.newBuilder()
@@ -147,17 +157,23 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         return Empty.getDefaultInstance()
     }
 
-    private fun _connectRaceData(trackCode: String, raceId: String): Job {
-        val raceDataSource = raceDataSourceFactoryFn(raceId)
+    private fun _connectRaceData(trackCode: String, raceId: String, provider: MeringueAdmin.RaceDataProvider): Job {
+        val raceDataSource = raceDataSourceFactoryFn(provider, raceId)
         raceDataSource.logRaceData = logRaceData.toBooleanStrict()
         val streamUrl = raceDataSource.connect()
         log.info("launching thread to run $raceId @ $trackCode")
+        val newRace = RaceOrder()
+        val dsHandler = when (provider) {
+            MeringueAdmin.RaceDataProvider.PROVIDER_RH -> DataSource2Handler(newRace, trackCode, getConnectedCars(trackCode))
+            MeringueAdmin.RaceDataProvider.PROVIDER_RM -> DataSourceHandler(newRace, trackCode, delayLapCompletedEvent.toLong(), getConnectedCars(trackCode))
+            else -> throw RuntimeException("unknown race data source")
+        }
+
         val jobId = GlobalScope.launch(newSingleThreadContext("thread-${trackCode}")) {
-            val newRace = RaceOrder()
             raceMap[trackCode] = newRace
             raceDataSource.stream(
                 streamUrl,
-                DataSourceHandler(newRace, trackCode, delayLapCompletedEvent.toLong(), getConnectedCars(trackCode))
+                dsHandler
             )
             // finished here
             log.info("removing race data as thread has finished")
@@ -172,19 +188,64 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         return raceMap[trackCode]?.createRaceView()
     }
 
-    override suspend fun listLiveRaces(request: Empty): MeringueAdmin.LiveRaceListResponse {
-        val liveRaces = raceLister.getLiveRaces()
+    override suspend fun findLiveRaces(request: MeringueAdmin.SearchTermsRequest): MeringueAdmin.LiveRaceListResponse {
+        val liveRacesRM = raceLister1.getLiveRaces(request.termList.toList())
             .map {
-                    MeringueAdmin.LiveRace.newBuilder()
-                        .setRaceId(it.raceId)
-                        .setTrackName(it.trackName)
-                        .setEventName(it.eventName)
-                        .build()
-                }
+                MeringueAdmin.LiveRace.newBuilder()
+                    .setRaceId(it.raceId)
+                    .setTrackName(it.trackName)
+                    .setEventName(it.eventName)
+                    .setProvider(MeringueAdmin.RaceDataProvider.PROVIDER_RM)
+                    .build()
+            }
             .collect(Collectors.toList())
+        val liveRacesRH = raceLister2.getLiveRaces(request.termList.toList())
+            .map {
+                MeringueAdmin.LiveRace.newBuilder()
+                    .setRaceId(it.raceId)
+                    .setTrackName(it.trackName)
+                    .setEventName(it.eventName)
+                    .setProvider(MeringueAdmin.RaceDataProvider.PROVIDER_RH)
+                    .build()
+            }
+            .collect(Collectors.toList())
+        val allRaces = liveRacesRH + liveRacesRM
+        val searchTerms: List<String> = request.termList.stream().map {
+            it.lowercase()
+        }.collect(Collectors.toList())
+
         return MeringueAdmin.LiveRaceListResponse.newBuilder()
-            .addAllRaces(liveRaces)
+            .addAllRaces(allRaces.sortedWith(FuzzyComparator(searchTerms)))
             .build()
+
+    }
+
+    class FuzzyComparator(private val terms: List<String>) : Comparator<MeringueAdmin.LiveRace> {
+
+        override fun compare(o1: MeringueAdmin.LiveRace?, o2: MeringueAdmin.LiveRace?): Int {
+            return countTerms(o2) - countTerms(o1)
+        }
+
+        private fun countTerms(o1: MeringueAdmin.LiveRace?): Int {
+            if (o1 == null) {
+                return 0
+            }
+
+            val delimiters = listOf(" ", "@", ":", "/").toTypedArray()
+
+            return ((o1.eventName?.split(*delimiters)?: emptyList<String>()) +
+                    o1.trackName.split(*delimiters))
+                .stream()
+                .filter {
+                            it.lowercase() in terms
+                        }
+                        .count().toInt()
+        }
+
+    }
+
+    override suspend fun listLiveRaces(request: Empty): MeringueAdmin.LiveRaceListResponse {
+        return findLiveRaces(MeringueAdmin.SearchTermsRequest.getDefaultInstance())
     }
 
     private fun getConnectedCars(trackCode: String?): Set<String> {

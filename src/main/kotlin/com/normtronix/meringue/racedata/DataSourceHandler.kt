@@ -9,12 +9,10 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 class DataSourceHandler(private val leaderboard: RaceOrder,
-                        val trackCode: String,
+                        trackCode: String,
                         val delayLapCompletedEvent: Long,
-                        targetCarParam: Set<String>) : EventHandler {
+                        targetCarParam: Set<String>) : BaseDataSourceHandler(leaderboard, trackCode, targetCarParam) {
 
-
-    private val targetCars = targetCarParam.toMutableSet()
 
     init {
         Events.register(CarConnectedEvent::class.java, this,
@@ -97,62 +95,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         }
     }
 
-    private suspend fun constructLapCompleteEvent(
-        view: RaceView,
-        thisCar: CarPosition,
-    ) {
-        val carNumber = thisCar.carNumber
 
-        if (thisCar.position == 1) {
-            log.info("lead car $carNumber is starting lap ${thisCar.lapsCompleted + 1}")
-        }
-
-        if (targetCars.contains(carNumber)) {
-            val ahead = getCarAhead(thisCar)
-            emitLapCompleted(thisCar, ahead, view.raceStatus)
-            log.info("car of interest completed lap")
-        } else {
-            // it may be that this car is directly behind (in class or overall)
-            val overallAhead = thisCar.getCarAhead(PositionEnum.OVERALL)
-            val aheadInClass = thisCar.getCarAhead(PositionEnum.IN_CLASS)
-            if (overallAhead != null && targetCars.contains(overallAhead.carNumber)) {
-                emitLapCompleted(thisCar, overallAhead, view.raceStatus)
-                log.info("car following car of interest completed lap")
-            } else if (aheadInClass != null && targetCars.contains(aheadInClass.carNumber)) {
-                emitLapCompleted(thisCar, aheadInClass, view.raceStatus)
-                log.info("car following car of interest completed lap")
-            }
-        }
-    }
-
-    private suspend fun emitLapCompleted(
-        thisCar: CarPosition,
-        ahead: CarPosition?,
-        raceFlag: String
-    ) {
-        LapCompletedEvent(
-            trackCode,
-            thisCar.carNumber,
-            thisCar.lapsCompleted,
-            thisCar.position,
-            positionInClass = thisCar.positionInClass,
-            ahead = ahead?.carNumber,
-            gap = thisCar.gap(ahead),
-            gapToFront = thisCar.gapToFront,
-            thisCar.lastLapTime,
-            raceFlag,
-        ).emit()
-    }
-
-    internal fun getCarAhead(thisCar: CarPosition?) : CarPosition? {
-        val directlyAhead = thisCar?.getCarAhead(PositionEnum.OVERALL)
-        val aheadInClass = thisCar?.getCarAhead(PositionEnum.IN_CLASS)
-        //
-        if (aheadInClass != null && thisCar.positionInClass <= 5) {
-            return aheadInClass
-        }
-        return directlyAhead
-    }
 
     internal fun convertToSeconds(rawTime: String): Double {
         val time = rawTime.trim('"')

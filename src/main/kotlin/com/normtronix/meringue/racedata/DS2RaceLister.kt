@@ -31,10 +31,13 @@ class DS2RaceLister {
 
     @Scheduled(fixedDelayString = "5 minutes")
     private fun loadData() {
-        val todayMonth = SimpleDateFormat("MMMM d").format(Date())
-        log.info("looking for races on $todayMonth")
         log.info("loading race index data")
         /*
+            <h4 class="list-group-item-heading">
+                  Thunderhill Raceway Nov 12-13
+                 <i class="fa fa-bullhorn text-green" title="Live Event"></i>
+             </h4>
+              <span class="details">NASA - NorCal<br />November 12, 2022 &mdash; Thunderhill 2M</span>
         <div class="row-text-container">
           <h4 class="list-group-item-heading">
                2022 JRRC 3 50s [22-R-57196]
@@ -60,19 +63,17 @@ class DS2RaceLister {
             log.debug("found event $event at ending place ${result.range.last}")
             val linkResult = detailsRE.findAll(raceListHtml, result.range.first)
 
+
             linkResult.asStream().findFirst().map {
-                if (it.groupValues.size == 3) {
+                if (it.groupValues.size == 3 && "Live Event" in it.groupValues[1]) {
                     // we get some double spaces that can cause match problems w/ target date
                     val orgAndDateAndTrack = it.groupValues[2].replace("  ", " ")
-                    val title = it.groupValues[1]
-                    if (orgAndDateAndTrack.contains(todayMonth)) {
-                        log.debug("got interesting event ${orgAndDateAndTrack} + $title")
-                        val fields = splitDetailsRE.findAll(orgAndDateAndTrack)
-                        fields.asStream().findFirst().map {
-                            val title = it.groupValues[1].trim()
-                            val track = it.groupValues[2].trim()
-                            tmpEventList[event] = RaceDataIndexItem(event, track, title)
-                        }
+                    val title = it.groupValues[1].trim().split("\n").first()
+                    log.debug("got interesting event ${orgAndDateAndTrack} + $title")
+                    val fields = splitDetailsRE.findAll(orgAndDateAndTrack)
+                    fields.asStream().findFirst().map {
+                        val track = it.groupValues[2].trim()
+                        tmpEventList[event] = RaceDataIndexItem(event, track, title)
                     }
                 }
             }
@@ -86,7 +87,7 @@ class DS2RaceLister {
         val log: Logger = LoggerFactory.getLogger(DS2RaceLister::class.java)
     }
 }
-
+//
 //fun main() {
 //    DS2RaceLister().getLiveRaces(emptyList())
 //}

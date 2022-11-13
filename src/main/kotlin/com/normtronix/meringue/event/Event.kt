@@ -161,3 +161,13 @@ class GpsPositionEvent(
         return "GpsEvent : $carNumber ($trackCode)"
     }
 }
+
+class CarPittingEvent(
+    val trackCode: String,
+    val carNumber: String
+): Event() {
+
+    override fun toString(): String {
+        return "PittingEvent : $carNumber ($trackCode)"
+    }
+}

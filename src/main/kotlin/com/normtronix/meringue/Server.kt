@@ -96,6 +96,11 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                 carNumber,
                 request.ping.gps
             ).emit()
+        } else if (request.hasPitting()) {
+            CarPittingEvent(
+                trackCode,
+                carNumber
+            ).emit()
         }
     }
 

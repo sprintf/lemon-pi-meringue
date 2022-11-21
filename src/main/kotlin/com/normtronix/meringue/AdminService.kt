@@ -248,6 +248,15 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         return findLiveRaces(MeringueAdmin.SearchTermsRequest.getDefaultInstance())
     }
 
+    override suspend fun listConnectedCars(request: MeringueAdmin.ConnectedCarRequest) : MeringueAdmin.ConnectedCarResponse {
+        when (trackMetaData.isValidTrackCode(request.trackCode)) {
+            true -> return MeringueAdmin.ConnectedCarResponse.newBuilder()
+                .addAllCarNumber(lemonPiService.getConnectedCarNumbers(request.trackCode))
+                .build()
+            else -> throw RuntimeException("invalid track code")
+        }
+    }
+
     private fun getConnectedCars(trackCode: String?): Set<String> {
         if (trackCode == null) {
             return setOf()
@@ -285,6 +294,11 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         } else {
             log.info("request ignored ... no such running race")
         }
+        return Empty.getDefaultInstance()
+    }
+
+    override suspend fun sendDriverMessage(request: MeringueAdmin.DriverMessageRequest): Empty {
+        lemonPiService.sendDriverMessage(request.trackCode, request.carNumber, request.message)
         return Empty.getDefaultInstance()
     }
 

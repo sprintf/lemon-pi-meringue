@@ -81,6 +81,26 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         return getSendChannel(currentTrack, request.carNumber, currentKey, toPitIndex).asSharedFlow()
     }
 
+    internal suspend fun sendDriverMessage(trackCode: String, carNumber: String, message: String) {
+        val internalMessage = LemonPi.ToCarMessage.newBuilder().messageBuilder
+            .setCarNumber(carNumber)
+            .setSender("meringue")
+            .setText(message)
+            .setSeqNum(seqNo++)
+            .setTimestamp(Instant.now().epochSecond.toInt())
+            .build()
+        val wrapper = LemonPi.ToCarMessage.newBuilder()
+            .setMessage(internalMessage)
+            .build()
+
+        log.info("request to send driver message to car $carNumber at $trackCode")
+
+        toCarIndex[trackCode]?.get(carNumber)?.radioKey?.apply {
+            getSendChannel(trackCode, carNumber, this, toCarIndex).emit(wrapper)
+            log.info("sent driver message to car $carNumber at $trackCode")
+        }
+    }
+
     private suspend fun introspectToPitMessage(trackCode: String,
                                                carNumber: String,
                                                request: LemonPi.ToPitMessage) {
@@ -98,6 +118,11 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
             ).emit()
         } else if (request.hasPitting()) {
             CarPittingEvent(
+                trackCode,
+                carNumber
+            ).emit()
+        } else if (request.hasEntering()) {
+            CarLeavingPitEvent(
                 trackCode,
                 carNumber
             ).emit()
@@ -251,6 +276,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
             "" -> { RaceFlagStatusOuterClass.RaceFlagStatus.UNKNOWN }
             else -> RaceFlagStatusOuterClass.RaceFlagStatus.valueOf(statusString.trim().uppercase())
         }
+
 
 }
 

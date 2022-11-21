@@ -26,6 +26,7 @@ repositories {
 
 extra["springCloudGcpVersion"] = "2.0.6"
 extra["springCloudVersion"] = "2020.0.4"
+extra["gcpLibrariesVersion"] = "26.1.4"
 
 dependencies {
 
@@ -46,6 +47,8 @@ dependencies {
 	implementation("io.grpc:grpc-protobuf:${grpcVersion}")
 	implementation("io.grpc:grpc-stub:${grpcVersion}")
 	implementation("io.grpc:grpc-kotlin-stub:0.1.5")
+	implementation("com.google.cloud:google-cloud-firestore")
+	implementation("com.slack.api:slack-api-client:1.27.1")
 
 	implementation("com.pusher:pusher-java-client:2.4.2")
 
@@ -61,6 +64,7 @@ dependencies {
 dependencyManagement {
 	imports {
 		mavenBom("com.google.cloud:spring-cloud-gcp-dependencies:${property("springCloudGcpVersion")}")
+		mavenBom("com.google.cloud:libraries-bom:${property("gcpLibrariesVersion")}")
 		mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
 	}
 }

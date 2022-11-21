@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.net.URL
+import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
 class RaceDataIndexItem(val raceId: String, val trackName: String, var eventName: String? = null)
@@ -22,7 +23,7 @@ class DS1RaceLister {
         return eventList.values.stream()
     }
 
-    @Scheduled(fixedDelayString = "5 minutes")
+    @Scheduled(fixedDelayString = "5", timeUnit = TimeUnit.MINUTES)
     private fun loadData() {
         log.info("loading race index data")
         val linkRE = Regex("@ <a href=\"(.*?)\">(.*?)</a")

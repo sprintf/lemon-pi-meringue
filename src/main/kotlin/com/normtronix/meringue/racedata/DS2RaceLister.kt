@@ -4,17 +4,10 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
-import java.awt.SystemColor.text
-import java.io.File
 import java.net.URL
-import java.text.DateFormat
-import java.text.SimpleDateFormat
-import java.time.temporal.TemporalField
-import java.util.*
+import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 import kotlin.streams.asStream
-
-// class RaceDataIndexItem(val raceId: String, val trackName: String, var eventName: String? = null)
 
 @Component
 class DS2RaceLister {
@@ -29,7 +22,7 @@ class DS2RaceLister {
         return eventList.values.stream()
     }
 
-    @Scheduled(fixedDelayString = "5 minutes")
+    @Scheduled(fixedDelayString = "5", timeUnit = TimeUnit.MINUTES)
     private fun loadData() {
         log.info("loading race index data")
         /*

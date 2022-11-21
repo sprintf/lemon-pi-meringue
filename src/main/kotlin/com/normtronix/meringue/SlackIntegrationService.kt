@@ -82,11 +82,3 @@ class SlackIntegrationService: InitializingBean, EventHandler {
         val log: Logger = LoggerFactory.getLogger(SlackIntegrationService::class.java)
     }
 }
-
-//fun main() {
-//    SlackIntegrationService().apply {
-//        this.afterPropertiesSet()
-//        this.loadSlackKeys()
-//        this.sendSlackMessage("car-pitting", "<!here> car 8 is leaving the pits. Let's Go!! :racing_car: :traffic_light:", "xoxb-4242155837521-4371782599282-pXgC6oGA3jc7y1dh4LCf76Ha")
-//    }
-//}

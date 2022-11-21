@@ -1,10 +1,7 @@
 package com.normtronix.meringue.event
 
 import com.normtronix.meringue.LemonPi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.stream.Collectors
@@ -58,6 +55,7 @@ class Events {
     data class HandlerAndFilter(val handler: EventHandler, val filter: (Event) -> Boolean)
 }
 
+@OptIn(DelicateCoroutinesApi::class)
 open class Event {
 
     suspend fun emit() {
@@ -169,5 +167,15 @@ class CarPittingEvent(
 
     override fun toString(): String {
         return "PittingEvent : $carNumber ($trackCode)"
+    }
+}
+
+class CarLeavingPitEvent(
+    val trackCode: String,
+    val carNumber: String
+): Event() {
+
+    override fun toString(): String {
+        return "PitExitEvent : $carNumber ($trackCode)"
     }
 }

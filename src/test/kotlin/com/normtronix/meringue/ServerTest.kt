@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.TestPropertySource
@@ -20,13 +21,16 @@ import java.util.concurrent.TimeUnit
 
 @ExperimentalCoroutinesApi
 @RunWith(SpringRunner::class)
-@SpringBootTest()
+@SpringBootTest(classes = [SlackIntegrationService::class])
 @Import(TestFireStoreConfiguration::class)
 @TestPropertySource(locations=["classpath:test.properties"])
 internal class ServerTest {
 
     val grpcCleanup = GrpcCleanupRule()
     var asyncStub: CommsServiceGrpc.CommsServiceStub? = null
+
+    @Autowired
+    lateinit var slack: SlackIntegrationService // not needed but fails without it
 
     fun setupBlockingStub() :  CommsServiceGrpc.CommsServiceBlockingStub {
         val serverName = InProcessServerBuilder.generateName()

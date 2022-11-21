@@ -1,5 +1,7 @@
 package com.normtronix.meringue
 
+import com.google.auth.oauth2.OAuth2Credentials
+import com.google.cloud.NoCredentials
 import com.google.protobuf.Empty
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
@@ -11,10 +13,17 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
+import org.springframework.test.context.TestPropertySource
 import java.util.concurrent.TimeUnit
 
 @SpringBootTest
+@Import(TestFireStoreConfiguration::class)
+@TestPropertySource(locations=["classpath:test.properties"])
 internal class ServerTest {
 
     val grpcCleanup = GrpcCleanupRule()

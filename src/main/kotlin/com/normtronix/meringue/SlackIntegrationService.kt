@@ -1,39 +1,34 @@
 package com.normtronix.meringue
 
-import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.firestore.Firestore
-import com.google.cloud.firestore.FirestoreOptions
 import com.normtronix.meringue.event.*
 import com.slack.api.Slack
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import java.util.concurrent.TimeUnit
 
 
 @Service
-class SlackIntegrationService: InitializingBean, EventHandler {
+class SlackIntegrationService(): InitializingBean, EventHandler {
 
-    private var db: Firestore? = null
     val slackKeys = mutableMapOf<String, String>()
     val slackChannels = mutableMapOf<String, String>()
+
+    @Autowired
+    lateinit var db: Firestore
 
     override fun afterPropertiesSet() {
         Events.register(CarPittingEvent::class.java, this)
         Events.register(CarLeavingPitEvent::class.java, this)
-
-        val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
-            .setProjectId("meringue")
-            .setCredentials(GoogleCredentials.getApplicationDefault())
-            .build()
-        this.db = firestoreOptions.getService()
     }
 
     @Scheduled(fixedDelayString = "5", timeUnit = TimeUnit.MINUTES)
     internal fun loadSlackKeys() {
-        db?.collection("lemon_pi_slack")?.get()?.get()?.documents?.forEach {
+        db.collection("lemon_pi_slack")?.get()?.get()?.documents?.forEach {
             if (it.contains("car_number") &&
                     it.contains("track_code") &&
                     it.contains("slack_token")) {

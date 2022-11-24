@@ -39,7 +39,7 @@ internal class SlackIntegrationServiceTest {
         setupMocks(s)
         val e = CarPittingEvent("thil", "8")
         s.handleEvent(e)
-        coVerify() { s.sendSlackMessage("pit", "5:55 -> <!here> Car 8 Leaving Pits", "key")}
+        coVerify() { s.sendSlackMessage("pit", "5:55 -> <!channel> Car 8 Pitting", "key")}
     }
     }
 
@@ -49,7 +49,7 @@ internal class SlackIntegrationServiceTest {
         setupMocks(s)
         val e = CarLeavingPitEvent("thil", "8")
         s.handleEvent(e)
-        coVerify() { s.sendSlackMessage("pit", "5:55 -> <!here> Car 8 Lewaving Pits", "key")}
+        coVerify() { s.sendSlackMessage("pit", "5:55 -> <!here> Car 8 Leaving Pits", "key")}
     }
     }
 

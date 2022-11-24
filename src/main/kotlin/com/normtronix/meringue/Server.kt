@@ -108,8 +108,11 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
             CarTelemetryEvent(
                 trackCode,
                 carNumber,
+                request.telemetry.lapCount,
+                request.telemetry.lastLapTime,
                 request.telemetry.coolantTemp,
-                request.telemetry.fuelRemainingPercent).emit()
+                request.telemetry.fuelRemainingPercent
+            ).emit()
         } else if (request.hasPing()) {
             GpsPositionEvent(
                 trackCode,

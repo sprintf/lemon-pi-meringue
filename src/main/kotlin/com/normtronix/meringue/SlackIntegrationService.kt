@@ -9,6 +9,8 @@ import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 
@@ -16,7 +18,8 @@ import java.util.concurrent.TimeUnit
 class SlackIntegrationService(): InitializingBean, EventHandler {
 
     val slackKeys = mutableMapOf<String, String>()
-    val slackChannels = mutableMapOf<String, String>()
+    val slackPitChannels = mutableMapOf<String, String>()
+    val slackInfoChannels = mutableMapOf<String, String>()
 
     @Autowired
     lateinit var db: Firestore
@@ -24,6 +27,7 @@ class SlackIntegrationService(): InitializingBean, EventHandler {
     override fun afterPropertiesSet() {
         Events.register(CarPittingEvent::class.java, this)
         Events.register(CarLeavingPitEvent::class.java, this)
+        Events.register(CarTelemetryEvent::class.java, this)
     }
 
     @Scheduled(fixedDelayString = "5", timeUnit = TimeUnit.MINUTES)
@@ -32,8 +36,18 @@ class SlackIntegrationService(): InitializingBean, EventHandler {
             if (it.contains("car_number") &&
                     it.contains("track_code") &&
                     it.contains("slack_token")) {
-                slackKeys[buildKey(it["track_code"] as String, it["car_number"] as String)] = it["slack_token"] as String
-                slackChannels[buildKey(it["track_code"] as String, it["car_number"] as String)] = it["slack_channel"] as String
+                slackKeys[buildKey(it["track_code"] as String, it["car_number"] as String)] =
+                    it["slack_token"] as String
+
+                if (it.contains("slack_pit_channel")) {
+                    slackPitChannels[buildKey(it["track_code"] as String, it["car_number"] as String)] =
+                        it["slack_pit_channel"] as String
+                }
+
+                if (it.contains("slack_info_channel")) {
+                    slackInfoChannels[buildKey(it["track_code"] as String, it["car_number"] as String)] =
+                        it["slack_info_channel"] as String
+                }
             }
         }
     }
@@ -41,26 +55,43 @@ class SlackIntegrationService(): InitializingBean, EventHandler {
     override suspend fun handleEvent(e: Event) {
         when (e) {
             is CarPittingEvent -> {
-                val channel = slackChannels[buildKey(e.trackCode, e.carNumber)]
+                val channel = slackPitChannels[buildKey(e.trackCode, e.carNumber)]
                 slackKeys[buildKey(e.trackCode, e.carNumber)]?.apply {
                     channel?.let {
-                        sendSlackMessage(channel, "Car ${e.carNumber} Pitting", this)
+                        sendSlackMessage(channel, "${getTime()} -> <!channel> Car ${e.carNumber} Pitting", this)
                     }
                 }
             }
             is CarLeavingPitEvent -> {
-                val channel = slackChannels[buildKey(e.trackCode, e.carNumber)]
+                val channel = slackPitChannels[buildKey(e.trackCode, e.carNumber)]
                 slackKeys[buildKey(e.trackCode, e.carNumber)]?.apply {
                     channel?.let {
-                        sendSlackMessage(channel, "Car ${e.carNumber} Leaving Pits", this)
+                        sendSlackMessage(channel, "${getTime()} -> <!here> Car ${e.carNumber} Leaving Pits", this)
+                    }
+                }
+            }
+            is CarTelemetryEvent -> {
+                val channel = slackInfoChannels[buildKey(e.trackCode, e.carNumber)]
+                slackKeys[buildKey(e.trackCode, e.carNumber)]?.apply {
+                    channel?.let {
+                        val readableLapTime = "${(e.lastLapTimeSec / 60).toInt()}:${(e.lastLapTimeSec % 60).toInt()}"
+                        val alert = if (e.coolantTemp >= 220) { "<!channel>" } else { "" }
+                        val message =
+                            "${getTime()} ->   Car ${e.carNumber}  lap:${e.lapCount}  time:$readableLapTime   temp:${e.coolantTemp}F $alert"
+                        log.info("sending $message to slack")
+                        sendSlackMessage(channel, message, this)
                     }
                 }
             }
             else -> {
-
+                log.warn("no handler for event $e")
             }
         }
     }
+
+    internal fun getTime() = SimpleDateFormat("h:mm:ss a").apply {
+        timeZone = TimeZone.getTimeZone("PST")
+    }.format(Date())
 
     internal suspend fun sendSlackMessage(channel: String, message: String, token: String) {
         Slack.getInstance().methodsAsync(token).chatPostMessage { b ->
@@ -69,7 +100,7 @@ class SlackIntegrationService(): InitializingBean, EventHandler {
         }
     }
 
-    private fun buildKey(trackCode: String, carNumber: String): String {
+    internal fun buildKey(trackCode: String, carNumber: String): String {
         return "${trackCode}:${carNumber}"
     }
 

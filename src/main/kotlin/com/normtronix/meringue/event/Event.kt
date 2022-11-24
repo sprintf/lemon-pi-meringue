@@ -129,6 +129,8 @@ class RaceDisconnectEvent(
 class CarTelemetryEvent(
     val trackCode: String,
     val carNumber: String,
+    val lapCount: Int,
+    val lastLapTimeSec: Float,
     val coolantTemp: Int,
     val fuelRemainingPercent: Int
 ) : Event() {

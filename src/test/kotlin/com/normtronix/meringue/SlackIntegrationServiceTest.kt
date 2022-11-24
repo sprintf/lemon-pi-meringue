@@ -53,12 +53,6 @@ internal class SlackIntegrationServiceTest {
     }
     }
 
-    @Test
-    fun testGetTime() {
-        val s = SlackIntegrationService()
-        assertEquals(s.getTime(), SimpleDateFormat("h:mm:ss a").format(Date()).toString())
-    }
-
     private fun setupMocks(s: SlackIntegrationService) {
         every { s.getTime() } answers { "5:55" }
         every { s.buildKey(any(), any()) } answers { callOriginal() }

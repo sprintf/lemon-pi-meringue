@@ -257,6 +257,16 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         }
     }
 
+    override suspend fun resetFastLapTime(request: MeringueAdmin.ResetFastLapTimeRequest) : Empty {
+        lemonPiService.resetFastLapTime(request.trackCode, request.carNumber)
+        return Empty.getDefaultInstance()
+    }
+
+    override suspend fun setTargetLapTime(request: MeringueAdmin.SetTargetLapTimeRequest) : Empty {
+        lemonPiService.setTargetLapTime(request.trackCode, request.carNumber, request.targetTimeSeconds)
+        return Empty.getDefaultInstance()
+    }
+
     private fun getConnectedCars(trackCode: String?): Set<String> {
         if (trackCode == null) {
             return setOf()

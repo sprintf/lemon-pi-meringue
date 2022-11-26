@@ -101,6 +101,43 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         }
     }
 
+    internal suspend fun resetFastLapTime(trackCode: String, carNumber: String) {
+        val resetMessage = LemonPi.ToCarMessage.newBuilder().resetFastLapBuilder
+            .setCarNumber(carNumber)
+            .setSender("meringue")
+            .setSeqNum(seqNo++)
+            .setTimestamp(Instant.now().epochSecond.toInt())
+            .build()
+        val wrapper = LemonPi.ToCarMessage.newBuilder()
+            .setResetFastLap(resetMessage)
+            .build()
+
+        log.info("request to reset fast lap on $carNumber at $trackCode")
+        toCarIndex[trackCode]?.get(carNumber)?.radioKey?.apply {
+            getSendChannel(trackCode, carNumber, this, toCarIndex).emit(wrapper)
+            log.info("sent reset fast lap to car $carNumber at $trackCode")
+        }
+    }
+
+    internal suspend fun setTargetLapTime(trackCode: String, carNumber: String, targetTimeSeconds: Int) {
+        val targetTime = LemonPi.ToCarMessage.newBuilder().setTargetBuilder
+            .setCarNumber(carNumber)
+            .setTargetLapTime(targetTimeSeconds.toFloat())
+            .setSender("meringue")
+            .setSeqNum(seqNo++)
+            .setTimestamp(Instant.now().epochSecond.toInt())
+            .build()
+        val wrapper = LemonPi.ToCarMessage.newBuilder()
+            .setSetTarget(targetTime)
+            .build()
+
+        log.info("request to set target lap time on $carNumber at $trackCode")
+        toCarIndex[trackCode]?.get(carNumber)?.radioKey?.apply {
+            getSendChannel(trackCode, carNumber, this, toCarIndex).emit(wrapper)
+            log.info("sent target lap time to car $carNumber at $trackCode")
+        }
+    }
+
     private suspend fun introspectToPitMessage(trackCode: String,
                                                carNumber: String,
                                                request: LemonPi.ToPitMessage) {

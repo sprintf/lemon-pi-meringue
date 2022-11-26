@@ -75,6 +75,7 @@ class SlackIntegrationService(): InitializingBean, EventHandler {
                 slackKeys[buildKey(e.trackCode, e.carNumber)]?.apply {
                     channel?.let {
                         val readableLapTime = "${(e.lastLapTimeSec / 60).toInt()}:${(e.lastLapTimeSec % 60).toInt()}"
+                        // todo : move this into a configuration file
                         val alert = if (e.coolantTemp >= 220) { "<!channel>" } else { "" }
                         val message =
                             "${getTime()} ->   Car ${e.carNumber}  lap:${e.lapCount}  time:$readableLapTime   temp:${e.coolantTemp}F $alert"

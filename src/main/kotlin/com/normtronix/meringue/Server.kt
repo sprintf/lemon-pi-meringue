@@ -81,7 +81,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         return getSendChannel(currentTrack, request.carNumber, currentKey, toPitIndex).asSharedFlow()
     }
 
-    internal suspend fun sendDriverMessage(trackCode: String, carNumber: String, message: String) {
+    internal suspend fun sendDriverMessage(trackCode: String, carNumber: String, message: String): Boolean {
         val internalMessage = LemonPi.ToCarMessage.newBuilder().messageBuilder
             .setCarNumber(carNumber)
             .setSender("meringue")
@@ -98,10 +98,12 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         toCarIndex[trackCode]?.get(carNumber)?.radioKey?.apply {
             getSendChannel(trackCode, carNumber, this, toCarIndex).emit(wrapper)
             log.info("sent driver message to car $carNumber at $trackCode")
+            return true
         }
+        return false
     }
 
-    internal suspend fun resetFastLapTime(trackCode: String, carNumber: String) {
+    internal suspend fun resetFastLapTime(trackCode: String, carNumber: String): Boolean {
         val resetMessage = LemonPi.ToCarMessage.newBuilder().resetFastLapBuilder
             .setCarNumber(carNumber)
             .setSender("meringue")
@@ -116,10 +118,12 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         toCarIndex[trackCode]?.get(carNumber)?.radioKey?.apply {
             getSendChannel(trackCode, carNumber, this, toCarIndex).emit(wrapper)
             log.info("sent reset fast lap to car $carNumber at $trackCode")
+            return true
         }
+        return false
     }
 
-    internal suspend fun setTargetLapTime(trackCode: String, carNumber: String, targetTimeSeconds: Int) {
+    internal suspend fun setTargetLapTime(trackCode: String, carNumber: String, targetTimeSeconds: Int): Boolean {
         val targetTime = LemonPi.ToCarMessage.newBuilder().setTargetBuilder
             .setCarNumber(carNumber)
             .setTargetLapTime(targetTimeSeconds.toFloat())
@@ -135,7 +139,9 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         toCarIndex[trackCode]?.get(carNumber)?.radioKey?.apply {
             getSendChannel(trackCode, carNumber, this, toCarIndex).emit(wrapper)
             log.info("sent target lap time to car $carNumber at $trackCode")
+            return true
         }
+        return false
     }
 
     private suspend fun introspectToPitMessage(trackCode: String,

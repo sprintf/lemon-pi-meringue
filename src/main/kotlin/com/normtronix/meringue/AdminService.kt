@@ -1,5 +1,6 @@
 package com.normtronix.meringue
 
+import com.google.protobuf.BoolValue
 import com.google.protobuf.Empty
 import com.normtronix.meringue.event.RaceDisconnectEvent
 import com.normtronix.meringue.racedata.*
@@ -233,7 +234,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
 
             val delimiters = listOf(" ", "@", ":", "/").toTypedArray()
 
-            return ((o1.eventName?.split(*delimiters)?: emptyList<String>()) +
+            return ((o1.eventName?.split(*delimiters)?: emptyList()) +
                     o1.trackName.split(*delimiters))
                 .stream()
                 .filter {
@@ -257,14 +258,12 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         }
     }
 
-    override suspend fun resetFastLapTime(request: MeringueAdmin.ResetFastLapTimeRequest) : Empty {
-        lemonPiService.resetFastLapTime(request.trackCode, request.carNumber)
-        return Empty.getDefaultInstance()
+    override suspend fun resetFastLapTime(request: MeringueAdmin.ResetFastLapTimeRequest) : BoolValue {
+        return BoolValue.of(lemonPiService.resetFastLapTime(request.trackCode, request.carNumber))
     }
 
-    override suspend fun setTargetLapTime(request: MeringueAdmin.SetTargetLapTimeRequest) : Empty {
-        lemonPiService.setTargetLapTime(request.trackCode, request.carNumber, request.targetTimeSeconds)
-        return Empty.getDefaultInstance()
+    override suspend fun setTargetLapTime(request: MeringueAdmin.SetTargetLapTimeRequest) : BoolValue {
+        return BoolValue.of(lemonPiService.setTargetLapTime(request.trackCode, request.carNumber, request.targetTimeSeconds))
     }
 
     private fun getConnectedCars(trackCode: String?): Set<String> {
@@ -307,9 +306,8 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         return Empty.getDefaultInstance()
     }
 
-    override suspend fun sendDriverMessage(request: MeringueAdmin.DriverMessageRequest): Empty {
-        lemonPiService.sendDriverMessage(request.trackCode, request.carNumber, request.message)
-        return Empty.getDefaultInstance()
+    override suspend fun sendDriverMessage(request: MeringueAdmin.DriverMessageRequest): BoolValue {
+        return BoolValue.of(lemonPiService.sendDriverMessage(request.trackCode, request.carNumber, request.message))
     }
 
     @GrpcExceptionHandler(InvalidRaceId::class)

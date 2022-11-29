@@ -56,6 +56,7 @@ internal class SlackIntegrationServiceTest {
         every { s.slackInfoChannels } answers { mutableMapOf("thil:8" to "info") }
         every { s.slackPitChannels } answers { mutableMapOf("thil:8" to "pit") }
         every { s.slackKeys } answers { mutableMapOf("thil:8" to "key") }
+        every { s.coolantAlertLevel } answers { 220 }
         every { s.db } answers { mockk() }
         coEvery { s.sendSlackMessage(any(), any(), any()) } returns Unit
     }

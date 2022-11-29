@@ -7,6 +7,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import java.text.SimpleDateFormat
@@ -20,11 +21,17 @@ class SlackIntegrationService(): InitializingBean, EventHandler {
     val slackKeys = mutableMapOf<String, String>()
     val slackPitChannels = mutableMapOf<String, String>()
     val slackInfoChannels = mutableMapOf<String, String>()
+    var coolantAlertLevel: Int = 210
 
     @Autowired
     lateinit var db: Firestore
 
+    @Value("\${slack.coolantAlertLevel}")
+    lateinit var coolantAlertLevelStr: String
+
     override fun afterPropertiesSet() {
+        coolantAlertLevel = coolantAlertLevelStr.toInt()
+        log.info("coolant Slack alert level set to $coolantAlertLevel")
         Events.register(CarPittingEvent::class.java, this)
         Events.register(CarLeavingPitEvent::class.java, this)
         Events.register(CarTelemetryEvent::class.java, this)
@@ -75,8 +82,7 @@ class SlackIntegrationService(): InitializingBean, EventHandler {
                 slackKeys[buildKey(e.trackCode, e.carNumber)]?.apply {
                     channel?.let {
                         val readableLapTime = "${(e.lastLapTimeSec / 60).toInt()}:${(e.lastLapTimeSec % 60).toInt()}"
-                        // todo : move this into a configuration file
-                        val alert = if (e.coolantTemp >= 220) { "<!channel>" } else { "" }
+                        val alert = if (e.coolantTemp >= coolantAlertLevel) { "<!channel>" } else { "" }
                         val message =
                             "${getTime()} ->   Car ${e.carNumber}  lap:${e.lapCount}  time:$readableLapTime   temp:${e.coolantTemp}F $alert"
                         log.info("sending $message to slack")

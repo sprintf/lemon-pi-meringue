@@ -15,6 +15,16 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 
 
+private const val TRACK_CODE = "track_code"
+
+private const val CAR_NUMBER = "car_number"
+
+private const val SLACK_PIT_CHANNEL = "slack_pit_channel"
+
+private const val SLACK_INFO_CHANNEL = "slack_info_channel"
+
+private const val SLACK_TOKEN = "slack_token"
+
 @Service
 class SlackIntegrationService(): InitializingBean, EventHandler {
 
@@ -39,21 +49,21 @@ class SlackIntegrationService(): InitializingBean, EventHandler {
 
     @Scheduled(fixedDelayString = "5", timeUnit = TimeUnit.MINUTES)
     internal fun loadSlackKeys() {
-        db.collection("lemon_pi_slack")?.get()?.get()?.documents?.forEach {
-            if (it.contains("car_number") &&
-                    it.contains("track_code") &&
-                    it.contains("slack_token")) {
-                slackKeys[buildKey(it["track_code"] as String, it["car_number"] as String)] =
-                    it["slack_token"] as String
+        db.collection("lemon_pi_slack").get().get()?.documents?.forEach {
+            if (it.contains(CAR_NUMBER) &&
+                    it.contains(TRACK_CODE) &&
+                    it.contains(SLACK_TOKEN)) {
+                slackKeys[buildKey(it[TRACK_CODE] as String, it[CAR_NUMBER] as String)] =
+                    it[SLACK_TOKEN] as String
 
-                if (it.contains("slack_pit_channel")) {
-                    slackPitChannels[buildKey(it["track_code"] as String, it["car_number"] as String)] =
-                        it["slack_pit_channel"] as String
+                if (it.contains(SLACK_PIT_CHANNEL)) {
+                    slackPitChannels[buildKey(it[TRACK_CODE] as String, it[CAR_NUMBER] as String)] =
+                        it[SLACK_PIT_CHANNEL] as String
                 }
 
-                if (it.contains("slack_info_channel")) {
-                    slackInfoChannels[buildKey(it["track_code"] as String, it["car_number"] as String)] =
-                        it["slack_info_channel"] as String
+                if (it.contains(SLACK_INFO_CHANNEL)) {
+                    slackInfoChannels[buildKey(it[TRACK_CODE] as String, it[CAR_NUMBER] as String)] =
+                        it[SLACK_INFO_CHANNEL] as String
                 }
             }
         }

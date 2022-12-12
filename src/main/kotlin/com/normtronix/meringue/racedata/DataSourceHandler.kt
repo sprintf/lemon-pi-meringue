@@ -112,33 +112,6 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                 (timeAmount.nano / 1000000000.0)
     }
 
-    override suspend fun handleEvent(e: Event) {
-        if (e is CarConnectedEvent) {
-            targetCars.add(e.carNumber)
-            log.info("registering car ${e.carNumber} filtering for cars $targetCars")
-            val view = leaderboard.createRaceView()
-            val thisCar = view.lookupCar(e.carNumber)
-            thisCar?.let {
-                // wait a moment so the connection is there
-                delay(1000)
-                LapCompletedEvent(
-                    trackCode,
-                    thisCar.carNumber,
-                    thisCar.lapsCompleted,
-                    thisCar.position,
-                    positionInClass = thisCar.positionInClass,
-                    ahead = thisCar.carAhead?.carNumber,
-                    gap = "-",
-                    gapToFront = thisCar.gapToFront,
-                    thisCar.lastLapTime,
-                    view.raceStatus,
-                ).emit()
-            }
-        } else if (e is RaceDisconnectEvent) {
-            Events.unregister(this)
-        }
-    }
-
     companion object {
         val log: Logger = LoggerFactory.getLogger(DataSourceHandler::class.java)
     }

@@ -99,6 +99,8 @@ internal class AdminServiceTest {
     fun manualTest() {
         val runTimeSeconds = 100
         val admin = AdminService()
+        admin.delayLapCompletedEvent = "0"
+        admin.logRaceData = "false"
         admin.lemonPiService = Server()
         admin.trackMetaData = TrackMetaDataLoader()
         runBlocking {
@@ -183,12 +185,12 @@ internal class AdminServiceTest {
             .setTrackName("Sonoma Raceway")
             .build()
 
-        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(emptyList())));
-        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("Houston"))));
-        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("houston"))));
-        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("houston something"))));
-        assertEquals(listOf(r2, r1), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("sonoma"))));
-        assertEquals(listOf(r2, r1), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("sonoma", "raceway"))));
+        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(emptyList())))
+        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("Houston"))))
+        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("houston"))))
+        assertEquals(listOf(r1, r2), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("houston something"))))
+        assertEquals(listOf(r2, r1), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("sonoma"))))
+        assertEquals(listOf(r2, r1), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("sonoma", "raceway"))))
         
     }
 }

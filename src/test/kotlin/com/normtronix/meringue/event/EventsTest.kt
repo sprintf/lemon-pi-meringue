@@ -24,10 +24,10 @@ internal class EventsTest {
         Events.register(LapCompletedEvent::class.java, h)
         runBlocking {
             LapCompletedEvent("thil","red", 2, 3, 1,
-                null, "-", 300.0, 120.0, "green" ).emit()
+                null, "-", 300.0, -5.5, 120.0, "green" ).emit()
             delay(100)
             LapCompletedEvent("thil","red", 2, 3, 1,
-                null, "-", 300.0, 120.0, "green" ).emit()
+                null, "-", 300.0, +2.3, 120.0, "green" ).emit()
         }
         assertEquals(1, h.calledCount)
     }

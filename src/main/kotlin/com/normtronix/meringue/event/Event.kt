@@ -109,6 +109,7 @@ class LapCompletedEvent(
     val ahead: String?,
     val gap: String,
     val gapToFront: Double,
+    val gapToFrontDelta: Double,
     val lastLapTime: Double,
     val flagStatus: String) : Event(debounce = true) {
 

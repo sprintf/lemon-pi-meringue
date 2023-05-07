@@ -226,7 +226,13 @@ class RaceView internal constructor(val raceStatus: String, private val raceOrde
                     // store it in the gapToFront field
                     classLeaderLapTimestamps[carClass]?.apply {
                         this[car.lapsCompleted]?.apply {
+                            val lastGapToFront = car.gapToFront
                             car.gapToFront = this.until(ts, ChronoUnit.MILLIS).toDouble() / 1000
+                            if (lastGapToFront != 0.0) {
+                                car.gapToFrontDelta = lastGapToFront - car.gapToFront
+                            } else {
+                                car.gapToFrontDelta = 0.0
+                            }
                         }
                     }
                 }
@@ -250,6 +256,7 @@ class CarPosition(val carNumber: String, val classId: String?, internal val orig
     internal var fastestLapTime = origin.fastestLapTime
     internal var lastLapAbsTimestamp = origin.lastLapAbsTimestamp
     internal var gapToFront = 0.0
+    internal var gapToFrontDelta = 0.0
 
     /**
     produce a human-readable format of the gap. This could be in the form:

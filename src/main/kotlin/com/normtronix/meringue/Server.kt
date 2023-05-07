@@ -301,6 +301,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                     .setCarAhead(ahead)
                     .setFlagStatus(convertFlagStatus(e.flagStatus))
                     .setGapToFront(e.gapToFront.toFloat())
+                    .setGapToFrontDelta(e.gapToFrontDelta.toFloat())
                     .build()
                 getConnectedCarNumbers(e.trackCode).forEach {
                     if (it == msg.carNumber || it == msg.carAhead.carNumber) {

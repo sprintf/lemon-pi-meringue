@@ -19,7 +19,7 @@ class RaceOrder {
 
     class Car(val carNumber:String,
               val teamDriverName: String,
-              val classId:String? = null) : Comparable<Car> {
+              val classId:String = "") : Comparable<Car> {
         var position = 0
         var lapsCompleted = 0
 
@@ -32,6 +32,10 @@ class RaceOrder {
         var fastestLap = 0
         // this is an epoch time and accurate to the nearest second
         var lastLapAbsTimestamp: Instant? = null
+        // the number of seconds between this car and the leader when they crossed the same lap
+        var gapToFront: Double = 0.0
+        // the delta between this car and the leader, on this lap versus the previous one
+        var gapToFrontDelta: Double = 0.0
 
         override fun compareTo(other: Car): Int {
             // todo : base this on nullable field rather than negativelable field
@@ -57,7 +61,7 @@ class RaceOrder {
      */
     fun addCar(carNumber:String,
                teamDriverName: String,
-               classId:String? = null) {
+               classId:String = "") {
         val newCar = Car(carNumber, teamDriverName, classId)
         synchronized(lock) {
             numberLookup[carNumber] = newCar
@@ -96,6 +100,15 @@ class RaceOrder {
                         }
                     }
                 }
+            }
+
+            // store away this cars gap to the front
+            classLeaderLapTimestamps[it.classId]?.apply {
+                val originalGapToFront = it.gapToFront
+                it.gapToFront = this[it.lapsCompleted]?.let { leaderLapCrossTime ->
+                    leaderLapCrossTime.until(it.lastLapAbsTimestamp, ChronoUnit.MILLIS).toDouble() / 1000
+                } ?: 0.0
+                it.gapToFrontDelta = it.gapToFront - originalGapToFront
             }
         }
     }
@@ -170,9 +183,9 @@ class RaceOrderVisitor {
             race.classLookup.keys.map { classCounts[it] = 1 }
         }
 
-        var prev:CarPosition? = null
+        var prev: CarPosition? = null
         raceOrder.withIndex().forEach {
-            val carClass = it.value.classId ?: ""
+            val carClass = it.value.classId
 
             visitorCallback(it.value, it.index + 1, classCounts[carClass], carClass, prev)
             prev = it.value
@@ -221,21 +234,6 @@ class RaceView internal constructor(val raceStatus: String, private val raceOrde
                 posInClass?.let {
                     car.positionInClass = it
                 }
-                car.lastLapAbsTimestamp?.let { ts ->
-                    // if we can tell when the lead car in class crossed the line compared to us, then
-                    // store it in the gapToFront field
-                    classLeaderLapTimestamps[carClass]?.apply {
-                        this[car.lapsCompleted]?.apply {
-                            val lastGapToFront = car.gapToFront
-                            car.gapToFront = this.until(ts, ChronoUnit.MILLIS).toDouble() / 1000
-                            if (lastGapToFront != 0.0) {
-                                car.gapToFrontDelta = lastGapToFront - car.gapToFront
-                            } else {
-                                car.gapToFrontDelta = 0.0
-                            }
-                        }
-                    }
-                }
                 car.carAhead = prev
             }
             return RaceView(race.raceStatus, raceOrder.map { it.carNumber to it }.toMap())
@@ -244,7 +242,7 @@ class RaceView internal constructor(val raceStatus: String, private val raceOrde
 
 }
 
-class CarPosition(val carNumber: String, val classId: String?, internal val origin: RaceOrder.Car) {
+class CarPosition(val carNumber: String, val classId: String, internal val origin: RaceOrder.Car) {
 
     internal var position:Int = 0
     internal var positionInClass: Int = 0
@@ -255,8 +253,8 @@ class CarPosition(val carNumber: String, val classId: String?, internal val orig
     internal var fastestLap = origin.fastestLap
     internal var fastestLapTime = origin.fastestLapTime
     internal var lastLapAbsTimestamp = origin.lastLapAbsTimestamp
-    internal var gapToFront = 0.0
-    internal var gapToFrontDelta = 0.0
+    internal var gapToFront = origin.gapToFront
+    internal var gapToFrontDelta = origin.gapToFrontDelta
 
     /**
     produce a human-readable format of the gap. This could be in the form:

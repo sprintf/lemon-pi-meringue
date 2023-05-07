@@ -13,9 +13,9 @@ internal class SlackIntegrationServiceTest {
     fun testHandleTelemetryEvent() { runBlocking {
         val s = mockk<SlackIntegrationService>()
         setupMocks(s)
-        val e = CarTelemetryEvent("thil", "8", 5, 212.43F, 219, 78)
+        val e = CarTelemetryEvent("thil", "8", 5, 181.43F, 219, 78)
         s.handleEvent(e)
-        coVerify() { s.sendSlackMessage("info", "5:55 ->   Car 8  lap:5  time:3:32   temp:219F ", "key")}
+        coVerify() { s.sendSlackMessage("info", "5:55 ->   Car 8  lap:5  time:3:01   temp:219F ", "key")}
     }
     }
 
@@ -23,9 +23,9 @@ internal class SlackIntegrationServiceTest {
     fun testHandleTelemetryEvent2() { runBlocking {
         val s = mockk<SlackIntegrationService>()
         setupMocks(s)
-        val e = CarTelemetryEvent("thil", "8", 5, 212.43F, 220, 78)
+        val e = CarTelemetryEvent("thil", "8", 5, 185.43F, 220, 78)
         s.handleEvent(e)
-        coVerify() { s.sendSlackMessage("info", "5:55 ->   Car 8  lap:5  time:3:32   temp:220F <!channel>", "key")}
+        coVerify() { s.sendSlackMessage("info", "5:55 ->   Car 8  lap:5  time:3:05   temp:220F <!channel>", "key")}
     }
     }
 

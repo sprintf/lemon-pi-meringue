@@ -64,7 +64,7 @@ internal class DataSourceHandlerTest {
         println(car964?.gap(car964.getCarAhead(PositionEnum.OVERALL)))
 
         // there's some dupes in here now that we dont use RMHL codes
-        assertEquals(35, th.callbackCount["964"])
+        assertEquals(33, th.callbackCount["964"])
     }
 
     @Test

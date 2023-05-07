@@ -50,15 +50,24 @@ class Events {
                     }
                 }
         }
+
+        var lastEmittedEvent: Event? = null
     }
 
     data class HandlerAndFilter(val handler: EventHandler, val filter: (Event) -> Boolean)
 }
 
 @OptIn(DelicateCoroutinesApi::class)
-open class Event {
+open class Event(val debounce: Boolean = false) {
 
     suspend fun emit() {
+        // this is a crude debounce ... we're seeing multiple events updated and sent to the car when
+        // the car crosses the line. This should reduce all the messages being sent to the car.
+        // The only events that have debounce turned on are the LapCompletedEvent.
+        if (this.debounce && this.equals(Events.lastEmittedEvent)) {
+            log.info("suppressing $this")
+            return
+        }
         log.info("emitting $this")
         val event = this
         // for each of the handlers, call them
@@ -72,6 +81,7 @@ open class Event {
                 }
             }
         }
+        Events.lastEmittedEvent = event
     }
 
     fun emitAsync() {
@@ -99,11 +109,19 @@ class LapCompletedEvent(
     val ahead: String?,
     val gap: String,
     val gapToFront: Double,
+    val gapToFrontDelta: Double,
     val lastLapTime: Double,
-    val flagStatus: String) : Event() {
+    val flagStatus: String) : Event(debounce = true) {
 
     override fun toString(): String {
         return "LapCompletedEvent : $carNumber lap=$lapCount position=$position/$positionInClass ahead=$ahead by $gap"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        return other is LapCompletedEvent &&
+                this.trackCode == other.trackCode &&
+                this.carNumber == other.carNumber &&
+                this.lapCount == other.lapCount
     }
 }
 
@@ -138,6 +156,13 @@ class CarTelemetryEvent(
     override fun toString(): String {
         return "CarTelemetryEvent : $carNumber ($trackCode) coolant=$coolantTemp"
     }
+
+    override fun equals(other: Any?): Boolean {
+        return other is CarTelemetryEvent &&
+                this.trackCode == other.trackCode &&
+                this.carNumber == other.carNumber &&
+                this.lapCount == other.lapCount
+    }
 }
 
 class DriverMessageEvent(
@@ -148,6 +173,13 @@ class DriverMessageEvent(
 
     override fun toString(): String {
         return "DriverMessageEvent : $carNumber ($trackCode)"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        return other is DriverMessageEvent &&
+                this.trackCode == other.trackCode &&
+                this.carNumber == other.carNumber &&
+                this.message == other.message
     }
 }
 

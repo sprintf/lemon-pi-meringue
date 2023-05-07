@@ -102,6 +102,7 @@ internal class RaceOrderTest {
         race.updatePosition("181", 3, 5, 12.0)
         view = race.createRaceView()
         assertEquals(0.3, view.lookupCar("181")!!.gapToFront, 0.05)
+        assertEquals(-0.1, view.lookupCar("181")!!.gapToFrontDelta, 0.05)
     }
 
     @Test
@@ -134,6 +135,7 @@ internal class RaceOrderTest {
         race.updatePosition("181", 3, 5, 12.0)
         view = race.createRaceView()
         assertEquals(0.3, view.lookupCar("181")!!.gapToFront, 0.05)
+        assertEquals(-0.1, view.lookupCar("181")!!.gapToFrontDelta, 0.05)
     }
 
     @Test
@@ -161,6 +163,21 @@ internal class RaceOrderTest {
         assertEquals(null, car55?.getCarAhead(PositionEnum.IN_CLASS))
         assertEquals(car55, car701?.getCarAhead(PositionEnum.OVERALL))
         assertEquals(car10, car701?.getCarAhead(PositionEnum.IN_CLASS))
+    }
+
+    @Test
+    fun testGapToFrontDelta() {
+        val race = RaceOrder()
+        race.addClass("A", "A Class")
+        race.addCar("10", "", "A")
+        race.addCar("701", "", "A")
+        race.updatePosition("701", 1, 1, 0.0)
+        Thread.sleep(100)
+        race.updatePosition("10", 2, 1, 4.0)
+        assertEquals(0.1, race.numberLookup["10"]!!.gapToFrontDelta, 0.05)
+        race.updatePosition("701", 1, 2, 1000.0)
+        race.updatePosition("10", 2, 2, 1001.0)
+        assertEquals(-0.1, race.numberLookup["10"]!!.gapToFrontDelta, 0.05)
     }
 
     private fun assertRaceOrder(view: RaceView, vararg expectedCarNumbers: String) {

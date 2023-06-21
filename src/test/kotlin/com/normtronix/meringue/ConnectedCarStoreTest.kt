@@ -2,6 +2,7 @@ package com.normtronix.meringue
 
 import com.google.cloud.firestore.Firestore
 import com.google.cloud.firestore.FirestoreOptions
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
 import org.junit.jupiter.api.Assertions.*
@@ -16,15 +17,15 @@ import org.springframework.test.context.junit4.SpringRunner
 // this test class is not able to be tested in the cloud as part of CI very easily
 // due to the need to get the firestore emulator running there, and it doesn't run
 // appear to work nicely with gradle so leaving this as a manual test for now.
-@RunWith(SpringRunner::class)
-@SpringBootTest(classes = [ConnectedCarStore::class, FireStoreTestProvider::class])
-@TestPropertySource(locations=["classpath:test.properties"])
+//@RunWith(SpringRunner::class)
+//@SpringBootTest(classes = [ConnectedCarStore::class, FireStoreTestProvider::class])
+//@TestPropertySource(locations=["classpath:test.properties"])
 internal class ConnectedCarStoreTest {
 
     @Autowired
     lateinit var store: ConnectedCarStore
 
-    // uncomment to run @AfterEach
+    @AfterEach
     fun wipeDb() {
         store.wipe()
     }
@@ -39,10 +40,6 @@ internal class ConnectedCarStoreTest {
         assertNull(store.findTrack("181", "127.0.0.2", "mykey2"))
     }
 
-    @Test
-    fun testNothing() {
-        assertTrue(true)
-    }
 }
 
 private fun ConnectedCarStore.wipe() {

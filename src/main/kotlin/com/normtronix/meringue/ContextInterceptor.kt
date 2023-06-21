@@ -30,7 +30,13 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
         val authHeader: String? =
             headers[Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER)]
         log.debug("got auth : $authHeader")
-        val remoteIpAddress = call.attributes.get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR) as InetSocketAddress?
+        val remoteAddress = call.attributes.get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR)
+        val remoteSocketAddress =
+            if (remoteAddress is InetSocketAddress) {
+                remoteAddress
+            } else {
+                null
+            }
         if (authHeader == null || !authHeader.startsWith("Basic ")) {
             return EmptyCoroutineContext
         }
@@ -39,7 +45,7 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
             val requestDetails = buildContext(
                 decoded,
                 trackMetaData,
-                remoteIpAddress?.address.toString()
+                remoteSocketAddress?.address.toString()
             )
             if (requestDetails != null) {
                 requestor.set(requestDetails)

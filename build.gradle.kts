@@ -26,7 +26,7 @@ repositories {
 
 extra["springCloudGcpVersion"] = "2.0.6"
 extra["springCloudVersion"] = "2020.0.4"
-extra["gcpLibrariesVersion"] = "26.1.4"
+extra["gcpLibrariesVersion"] = "26.17.0"
 
 dependencies {
 

@@ -1,6 +1,8 @@
 package com.normtronix.meringue
 
 import com.normtronix.meringue.ContextInterceptor.Companion.requestor
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -12,15 +14,33 @@ internal class ServerChannelTest {
     fun testGettingMessagesFromCar(): Unit {
         runBlocking {
             val s = Server()
+            s.carStore = mockk()
+            every { s.carStore.storeConnectedCarDetails(any()) } returns Unit
+
             val collector = PitMessageCollector(s, "99")
             coroutineScope {
-                val j1 = launch(requestor.asContextElement(value= RequestDetails("thil", "99", "foo"))) {
+                val j1 = launch(requestor.asContextElement(
+                    value= RequestDetails(
+                        "thil",
+                        "99",
+                        "foo",
+                        ""))) {
                     s.sendMessageFromCar(createPittingMessage("99", 1))
                 }
-                val j2 = launch(requestor.asContextElement(value=RequestDetails("thil", "99-pit", "foo"))) {
+                val j2 = launch(requestor.asContextElement(
+                    value=RequestDetails(
+                        "thil",
+                        "99-pit",
+                        "foo",
+                        ""))) {
                     collector.getMessages()
                 }
-                val j3 = launch(requestor.asContextElement(value=RequestDetails("thil", "99", "foo"))) {
+                val j3 = launch(requestor.asContextElement(
+                    value=RequestDetails(
+                        "thil",
+                        "99",
+                        "foo",
+                        ""))) {
                     s.sendMessageFromCar(createPittingMessage("99", 2))
                 }
                 launch {
@@ -40,15 +60,33 @@ internal class ServerChannelTest {
     fun testGettingMessagesFromPit() {
         runBlocking {
             val s = Server()
+            s.carStore = mockk()
+            every { s.carStore.storeConnectedCarDetails(any()) } returns Unit
+
             val collector = CarMessageCollector(s, "99")
             coroutineScope {
-                val j1 = launch(requestor.asContextElement(value = RequestDetails("thil", "99-pit", "foo"))) {
+                val j1 = launch(requestor.asContextElement(
+                    value = RequestDetails(
+                        "thil",
+                        "99-pit",
+                        "foo",
+                        ""))) {
                     s.sendMessageFromPits(createDriverMessage("99", 1))
                 }
-                val j2 = launch(requestor.asContextElement(value = RequestDetails("thil", "99", "foo"))) {
+                val j2 = launch(requestor.asContextElement(
+                    value = RequestDetails(
+                        "thil",
+                        "99",
+                        "foo",
+                        ""))) {
                     collector.getMessages()
                 }
-                val j3 = launch(requestor.asContextElement(value = RequestDetails("thil", "99-pit", "foo"))) {
+                val j3 = launch(requestor.asContextElement(
+                    value = RequestDetails(
+                        "thil",
+                        "99-pit",
+                        "foo",
+                        ""))) {
                     s.sendMessageFromPits(createDriverMessage("99", 2))
                 }
                 launch {

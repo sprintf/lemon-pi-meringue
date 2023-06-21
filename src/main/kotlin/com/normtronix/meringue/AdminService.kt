@@ -2,6 +2,7 @@ package com.normtronix.meringue
 
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Empty
+import com.google.protobuf.StringValue
 import com.normtronix.meringue.event.RaceDisconnectEvent
 import com.normtronix.meringue.racedata.*
 import io.grpc.Status
@@ -31,6 +32,7 @@ import java.util.stream.Collectors
 @GrpcService(interceptors = [AdminSecurityInterceptor::class])
 @GrpcAdvice
 @Configuration
+@kotlinx.coroutines.ExperimentalCoroutinesApi
 class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), InitializingBean {
 
     private val activeMap = mutableMapOf<Handle, Job>()
@@ -49,6 +51,9 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
 
     @Autowired
     lateinit var lemonPiService: Server
+
+    @Autowired
+    lateinit var connectedCarStore: ConnectedCarStore
 
     @Autowired
     lateinit var authService: AuthService
@@ -84,7 +89,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
                 val raceId = raceTuple.split(":").last()
                 if (trackCode.isNotEmpty() && raceId.isNotEmpty()) {
                     activeMap[Handle(trackCode, raceId)] =
-                        _connectRaceData(trackCode, raceId, MeringueAdmin.RaceDataProvider.PROVIDER_RM)
+                        connectRaceData(trackCode, raceId, MeringueAdmin.RaceDataProvider.PROVIDER_RM)
                 }
             }
         }
@@ -141,7 +146,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
                 .build()
         }
 
-        val jobId = _connectRaceData(request.trackCode, request.providerId, request.provider)
+        val jobId = connectRaceData(request.trackCode, request.providerId, request.provider)
         activeMap[key] = jobId
         log.info("returning with result for race data stream $key")
         return MeringueAdmin.RaceDataConnectionResponse.newBuilder()
@@ -152,13 +157,20 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
             .build()
     }
 
+    override suspend fun getTrackForCar(request: MeringueAdmin.CarLocationRequest): StringValue {
+        log.info("looking for connected car $request")
+        val result = connectedCarStore.findTrack(request.carNumber, request.ipAddress, request.key)
+        log.info("found car at track $result")
+        return StringValue.of(result?:"")
+    }
+
     override suspend fun shutdown(request: Empty): Empty {
         log.warn("shutdown requested !!!")
         SpringApplication.exit(appContext, ExitCodeGenerator { 0 })
         return Empty.getDefaultInstance()
     }
 
-    private fun _connectRaceData(trackCode: String, raceId: String, provider: MeringueAdmin.RaceDataProvider): Job {
+    private fun connectRaceData(trackCode: String, raceId: String, provider: MeringueAdmin.RaceDataProvider): Job {
         val raceDataSource = raceDataSourceFactoryFn(provider, raceId)
         raceDataSource.logRaceData = logRaceData.toBooleanStrict()
         val streamUrl = raceDataSource.connect()
@@ -281,11 +293,12 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         // go through the list of connections, return status on each one
         val bldr = MeringueAdmin.RaceDataConnectionsResponse.newBuilder()
         activeMap.forEach {
-            bldr.addResponseBuilder()
-                .setTrackName(getTrackName(it.key.trackCode))
-                .setTrackCode(it.key.trackCode)
-                .setHandle(it.key.toString())
-                .setRunning(it.value.isActive)
+            bldr.addResponseBuilder().apply {
+                this.trackName = getTrackName(it.key.trackCode)
+                this.trackCode = it.key.trackCode
+                this.handle = it.key.toString()
+                this.running = it.value.isActive
+            }
         }
         return bldr.build()
     }

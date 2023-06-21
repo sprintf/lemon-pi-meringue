@@ -13,7 +13,7 @@ internal class ContextInterceptorTest {
         val tracks = mock(TrackMetaDataLoader::class.java)
         val s = ContextInterceptor(tracks)
         `when`(tracks.isValidTrackCode("abcd")).thenReturn(true)
-        val result = s.buildContext("abcd/181:foo", tracks)
+        val result = s.buildContext("abcd/181:foo", tracks, "")
         assertEquals("abcd", result?.trackCode)
         assertEquals("181", result?.carNum)
         assertEquals("foo", result?.key)
@@ -24,16 +24,16 @@ internal class ContextInterceptorTest {
         val tracks = mock(TrackMetaDataLoader::class.java)
         val s = ContextInterceptor(tracks)
         `when`(tracks.isValidTrackCode("bad")).thenReturn(false)
-        assertNull(s.buildContext("bad/181:foo", tracks))
+        assertNull(s.buildContext("bad/181:foo", tracks, ""))
     }
 
     @Test
     fun buildContextWithBadString() {
         val tracks = mock(TrackMetaDataLoader::class.java)
         val s = ContextInterceptor(tracks)
-        assertNull(s.buildContext("whatever", tracks))
-        assertNull(s.buildContext("hello:goodbye", tracks))
-        assertNull(s.buildContext("hob/goblin", tracks))
-        assertNull(s.buildContext("hob/goblin:one:two", tracks))
+        assertNull(s.buildContext("whatever", tracks, ""))
+        assertNull(s.buildContext("hello:goodbye", tracks, ""))
+        assertNull(s.buildContext("hob/goblin", tracks, ""))
+        assertNull(s.buildContext("hob/goblin:one:two", tracks, ""))
     }
 }

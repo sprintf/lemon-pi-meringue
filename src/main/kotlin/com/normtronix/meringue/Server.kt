@@ -1,5 +1,7 @@
 package com.normtronix.meringue
 
+import com.google.cloud.Timestamp
+import com.google.cloud.firestore.Firestore
 import com.google.protobuf.Empty
 import com.normtronix.meringue.ContextInterceptor.Companion.requestor
 import com.normtronix.meringue.event.*
@@ -12,12 +14,16 @@ import kotlinx.coroutines.flow.asSharedFlow
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import java.time.Instant
 
 
 @ExperimentalCoroutinesApi
 @GrpcService(interceptors = [ContextInterceptor::class, ServerSecurityInterceptor::class])
 class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler {
+
+    @Autowired
+    lateinit var carStore : ConnectedCarStore
 
     // map of trackCode -> carNumber -> ChannelAndKey<LemonPi.ToPitMessage>
     val toPitIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToPitMessage>>> = mutableMapOf()
@@ -67,6 +73,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         val currentTrack = requestDetails.trackCode
         val currentKey = requestDetails.key
         log.info("receiving messages for car ${request.carNumber} @ $currentTrack")
+        carStore.storeConnectedCarDetails(requestDetails)
         CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
         return getSendChannel(currentTrack, request.carNumber, currentKey, toCarIndex).asSharedFlow()
     }

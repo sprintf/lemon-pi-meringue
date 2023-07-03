@@ -31,6 +31,13 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
             headers[Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER)]
         log.debug("got auth : $authHeader")
         val remoteAddress = call.attributes.get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR)
+        headers.keys().forEach {
+            try {
+                log.info("got header key $it, with value of ${headers[Metadata.Key.of(it, Metadata.ASCII_STRING_MARSHALLER)]}")
+            } catch (e: Exception) {
+                log.info("problem unmarshalling", e)
+            }
+        }
         val remoteSocketAddress =
             if (remoteAddress is InetSocketAddress) {
                 remoteAddress

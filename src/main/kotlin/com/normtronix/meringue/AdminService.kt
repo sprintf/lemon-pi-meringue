@@ -3,6 +3,7 @@ package com.normtronix.meringue
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Empty
 import com.google.protobuf.StringValue
+import com.normtronix.meringue.MeringueAdmin.CarStatusSlackRequest
 import com.normtronix.meringue.event.RaceDisconnectEvent
 import com.normtronix.meringue.racedata.*
 import io.grpc.Status
@@ -57,6 +58,9 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
 
     @Autowired
     lateinit var authService: AuthService
+
+    @Autowired
+    lateinit var slackService: SlackIntegrationService
 
     @Value("\${adminUsername}")
     lateinit var adminUsername:String
@@ -162,6 +166,32 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         val result = connectedCarStore.findTrack(request.carNumber, request.ipAddress, request.key)
         log.info("found car at track $result")
         return StringValue.of(result?:"")
+    }
+
+    override suspend fun getCarStatus(request: CarStatusSlackRequest): MeringueAdmin.CarStatusResponse {
+        log.info("fetching car status for slack token ${request.slackToken}")
+        val builder = MeringueAdmin.CarStatusResponse.newBuilder()
+        slackService.getCarsForSlackToken(request.slackToken)?.stream()?.forEach { trackAndCar ->
+            connectedCarStore.getStatus(trackAndCar.trackCode, trackAndCar.carNumber)?.let { status ->
+                builder.addStatusList(MeringueAdmin.CarStatus.newBuilder().apply {
+                    this.trackCode = trackAndCar.trackCode
+                    this.carNumber = trackAndCar.carNumber
+                    this.online = status.isOnline
+                    this.ipAddress = status.ipAddress
+                })
+            }
+        }
+        return builder.build()
+    }
+
+    override suspend fun associateCarWithSlack(request: MeringueAdmin.CarAddViaSlackRequest): MeringueAdmin.CarStatusResponse {
+        log.info("looking for a car on wifi network ${request.ipAddress}")
+        connectedCarStore.getConnectedCars(request.ipAddress).stream().forEach {
+            slackService.createCarConnection(it.trackCode, it.carNumber, request.slackAppId, request.slackToken)
+        }
+        return getCarStatus(CarStatusSlackRequest.newBuilder().apply {
+            this.slackToken = request.slackToken
+        }.build())
     }
 
     override suspend fun shutdown(request: Empty): Empty {

@@ -1,10 +1,13 @@
 package com.normtronix.meringue
 
 import com.google.protobuf.Empty
+import com.normtronix.meringue.MeringueAdmin.CarAddViaSlackRequest
+import com.normtronix.meringue.MeringueAdmin.CarStatusSlackRequest
 import com.normtronix.meringue.racedata.DataSource1
 import com.normtronix.meringue.racedata.InvalidRaceId
 import io.mockk.coEvery
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.mockkObject
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -14,6 +17,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.assertThrows
 
+@kotlinx.coroutines.ExperimentalCoroutinesApi
 internal class AdminServiceTest {
 
     @Test
@@ -193,4 +197,92 @@ internal class AdminServiceTest {
         assertEquals(listOf(r2, r1), listOf(r1, r2).sortedWith(AdminService.FuzzyComparator(listOf("sonoma", "raceway"))))
         
     }
+
+    @Test
+    fun getCarStatusNothingConnected() {
+        runBlocking {
+            val admin = AdminService()
+            admin.slackService = mockk("foo")
+            every { admin.slackService.getCarsForSlackToken("slack") } returns emptyList()
+            val request = CarStatusSlackRequest.newBuilder().apply { this.slackToken = "slack" }.build()
+            val result = admin.getCarStatus(request)
+            assertTrue(result.statusListCount == 0)
+        }
+    }
+
+    @Test
+    fun getCarStatusOneConnected() {
+        runBlocking {
+            val admin = AdminService()
+            admin.slackService = mockk("foo")
+            admin.connectedCarStore = mockk("bar")
+            every { admin.slackService.getCarsForSlackToken("slack") } returns listOf(TrackAndCar("tr1", "181"))
+            every { admin.connectedCarStore.getStatus("tr1", "181") } returns
+                    ConnectedCarStore.CarConnectedStatus(true, "0:0:0:0")
+            val request = CarStatusSlackRequest.newBuilder().apply { this.slackToken = "slack" }.build()
+            val result = admin.getCarStatus(request)
+            assertTrue(result.statusListCount == 1)
+            assertEquals("181", result.getStatusList(0).carNumber)
+            assertEquals("tr1", result.getStatusList(0).trackCode)
+            assertEquals(true, result.getStatusList(0).online)
+            assertEquals("0:0:0:0", result.getStatusList(0).ipAddress)
+        }
+    }
+
+    @Test
+    fun getCarStatusMultipleCarsConnected() {
+        runBlocking {
+            val admin = AdminService()
+            admin.slackService = mockk("foo")
+            admin.connectedCarStore = mockk("bar")
+            every { admin.slackService.getCarsForSlackToken("slack") } returns
+                    listOf(TrackAndCar("tr1", "181"),
+                    TrackAndCar("tr1", "182"),
+                    TrackAndCar("tr1", "183"))
+            every { admin.connectedCarStore.getStatus("tr1", any()) } returns
+                    ConnectedCarStore.CarConnectedStatus(true, "0:0:0:0")
+            val request = CarStatusSlackRequest.newBuilder().apply { this.slackToken = "slack" }.build()
+            val result = admin.getCarStatus(request)
+            assertTrue(result.statusListCount == 3)
+        }
+    }
+
+    @Test
+    fun locateAndAddCarNoCar() {
+        runBlocking {
+            val admin = AdminService()
+            admin.slackService = mockk("foo")
+            admin.connectedCarStore = mockk("bar")
+            every { admin.connectedCarStore.getConnectedCars("127.0.0.1") } returns emptyList()
+            every { admin.slackService.getCarsForSlackToken("slack") } returns emptyList()
+            val request = CarAddViaSlackRequest.newBuilder().apply {
+                this.slackToken = "slack"
+                this.ipAddress = "127.0.0.1"
+            }.build()
+            val result = admin.associateCarWithSlack(request)
+            assertTrue(result.statusListCount == 0)
+        }
+    }
+
+    @Test
+    fun locateAndAddCarFindsCar() {
+        runBlocking {
+            val admin = AdminService()
+            admin.slackService = mockk("foo")
+            admin.connectedCarStore = mockk("bar")
+            every { admin.connectedCarStore.getConnectedCars("127.0.0.1") } returns listOf(TrackAndCar("tr1", "181"))
+            every { admin.slackService.createCarConnection("tr1", "181", "app", "token") } returns
+                    Unit
+            every { admin.slackService.getCarsForSlackToken("token") } returns listOf(TrackAndCar("tr1", "181"))
+            every { admin.connectedCarStore.getStatus("tr1", "181")} returns ConnectedCarStore.CarConnectedStatus(true, "127.0.0.1")
+            val request = CarAddViaSlackRequest.newBuilder().apply {
+                this.slackToken = "token"
+                this.ipAddress = "127.0.0.1"
+                this.slackAppId = "app"
+            }.build()
+            val result = admin.associateCarWithSlack(request)
+            assertTrue(result.statusListCount == 1)
+        }
+    }
+
 }

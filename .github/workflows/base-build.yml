@@ -23,6 +23,10 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
+      - name: Start Firestore
+        uses: mickfeech/firestore-emulator-action@0.0.12
+        with:
+          fireStoreProjectID: test
       - name: Validate Gradle
         uses: gradle/wrapper-validation-action@v1
       - name: Build with Gradle

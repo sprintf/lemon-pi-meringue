@@ -1,6 +1,5 @@
 package com.normtronix.meringue
 
-import io.grpc.Grpc
 import io.grpc.Metadata
 import io.grpc.ServerCall
 import io.grpc.kotlin.CoroutineContextServerInterceptor
@@ -9,7 +8,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
-import java.net.InetSocketAddress
 import java.util.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -30,20 +28,11 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
         val authHeader: String? =
             headers[Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER)]
         log.debug("got auth : $authHeader")
-        val remoteAddress = call.attributes.get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR)
-        headers.keys().forEach {
-            try {
-                log.info("got header key $it, with value of ${headers[Metadata.Key.of(it, Metadata.ASCII_STRING_MARSHALLER)]}")
-            } catch (e: Exception) {
-                log.info("problem unmarshalling", e)
-            }
+        val xffHeader = Metadata.Key.of("X-Forwarded-For", Metadata.ASCII_STRING_MARSHALLER)
+        val remoteAddress = when (headers.containsKey(xffHeader)) {
+            true -> headers[xffHeader]!!
+            else -> ""
         }
-        val remoteSocketAddress =
-            if (remoteAddress is InetSocketAddress) {
-                remoteAddress
-            } else {
-                null
-            }
         if (authHeader == null || !authHeader.startsWith("Basic ")) {
             return EmptyCoroutineContext
         }
@@ -52,7 +41,7 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
             val requestDetails = buildContext(
                 decoded,
                 trackMetaData,
-                remoteSocketAddress?.address.toString()
+                remoteAddress
             )
             if (requestDetails != null) {
                 requestor.set(requestDetails)

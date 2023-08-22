@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import java.util.stream.Collectors
 
 
 private const val TRACK_CODE = "track_code"
@@ -67,6 +68,33 @@ class SlackIntegrationService(): InitializingBean, EventHandler {
                 }
             }
         }
+    }
+
+    fun createCarConnection(trackCode: String, carNumber: String, slackAppId: String, slackToken: String) {
+
+
+        // todo : dont create if it already exists
+        // todo : delete if this token is associated with the car at another track
+        db.collection("lemon-pi-slack")
+            .document(slackAppId).
+            set(hashMapOf(
+                TRACK_CODE to trackCode,
+                CAR_NUMBER to carNumber,
+                SLACK_TOKEN to slackToken,
+                SLACK_PIT_CHANNEL to "car-pitting",
+                SLACK_INFO_CHANNEL to "car-race-info",
+            ).toMap())
+            .get(500, TimeUnit.MILLISECONDS)
+    }
+
+    fun getCarsForSlackToken(slackToken: String): List<TrackAndCar>? {
+        // avoid concurrent mod issues
+        val keyList = slackKeys.keys.toList()
+        return keyList.stream().filter {
+            slackKeys[it]?.contains(slackToken)?:false
+        }.map {
+            TrackAndCar.from(it)
+        }.collect(Collectors.toList())
     }
 
     override suspend fun handleEvent(e: Event) {

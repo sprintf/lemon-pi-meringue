@@ -106,7 +106,7 @@ internal class FireStoreTestProvider {
     fun getFirestore() : Firestore {
         val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
             .setProjectId("test")
-            .setEmulatorHost("localhost:8080")
+            .setEmulatorHost("0.0.0.0:8081")
             .build()
         return firestoreOptions.service
     }
@@ -117,4 +117,8 @@ internal class FireStoreTestProvider {
   # firebase login ...may not be needed in cloud
   curl -sL https://firebase.tools | upgrade=true bash
   firebase emulators:start --only firestore
+
+  OR
+
+  docker run --name firestore --publish 8081:8081 -e INPUT_FIRESTOREPROJECTID=test mickfeech/firestore-emulator:latest
  */

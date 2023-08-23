@@ -23,16 +23,23 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
-      - name: Start Firestore
-        uses: mickfeech/firestore-emulator-action@0.0.12
+      - uses: actions/setup-node@v1
         with:
-          fireStoreProjectID: test
+          node-version: '16'
+      - run: npm install -g firebase-tools
+      - run: npm ci
       - name: Validate Gradle
         uses: gradle/wrapper-validation-action@v1
-      - name: Build with Gradle
-        uses: gradle/gradle-build-action@v2.4.2
-        with:
-          arguments: build
+      - run: firebase emulators:exec --only firestore \"./gradlew build\"
+#      - name: Start Firestore
+#        uses: mickfeech/firestore-emulator-action@0.0.12
+#        with:
+#          fireStoreProjectID: test
+
+#      - name: Build with Gradle
+#        uses: gradle/gradle-build-action@v2.4.2
+#        with:
+#          arguments: build
       - name: Upload Jar
         uses: actions/upload-artifact@v2
         with:

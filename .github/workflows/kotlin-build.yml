@@ -10,4 +10,4 @@ on:
 jobs:
 
   call-workflow:
-    uses: sprintf/lemon-pi-meringue/.github/workflows/base-build.yml@main
+    uses: sprintf/lemon-pi-meringue/.github/workflows/base-build.yml@re-enable-firestore-tests

@@ -27,10 +27,10 @@ jobs:
         uses: gradle/wrapper-validation-action@v1
       - uses: actions/setup-node@v1
         with:
-          node-version: '16'
-      - run: npm install -g firebase-tools
-      - run: npm ci
-      - run: firebase emulators:exec --only firestore \"./gradlew build\"
+          node-version: 16.x
+      - run: |
+          npm install -g firebase-tools
+          firebase emulators:exec --only firestore --project test './gradlew build'
 #      - name: Start Firestore
 #        uses: mickfeech/firestore-emulator-action@0.0.12
 #        with:

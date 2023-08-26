@@ -1,7 +1,6 @@
 package com.normtronix.meringue
 
 import com.google.api.gax.core.FixedCredentialsProvider
-import com.google.cloud.NoCredentials
 import com.google.cloud.Timestamp
 import com.google.cloud.firestore.FirestoreOptions
 import io.mockk.every
@@ -26,26 +25,16 @@ internal class ConnectedCarStoreTest {
 
         private var store: ConnectedCarStore? = null
 
-//        @BeforeAll
-//        @JvmStatic
-//        fun connectToStore(): Unit {
-//            val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
-//                .setProjectId("test")
-//                .setEmulatorHost(emulator.emulatorEndpoint)
-//                .build()
-//            store = ConnectedCarStore(firestoreOptions.service)
-//        }
-
         @AfterAll
         @JvmStatic
-        fun shutdownFirestore(): Unit {
+        fun shutdownFirestore() {
             emulator.stop()
         }
     }
 
     @AfterEach
     fun wipeDb() {
-        // getFirestore(emulator).wipe()
+        getFirestore().wipe()
     }
 
     @Test
@@ -55,7 +44,7 @@ internal class ConnectedCarStoreTest {
 
     @Test
     fun findTrack() {
-        val store = getFirestore(emulator)
+        val store = getFirestore()
         assertNull(store.findTrack("181", "127.0.0.1", null))
 
         store.storeConnectedCarDetails(RequestDetails("thil", "181", "mykey", "127.0.0.1"))
@@ -64,26 +53,9 @@ internal class ConnectedCarStoreTest {
         assertNull(store.findTrack("181", "127.0.0.2", "mykey2"))
     }
 
-    private fun getFirestore(emulator: FirestoreEmulatorContainer): ConnectedCarStore {
-        // pointless comment to bump line numbers
-        assertNotNull(emulator, "emulator cannot be null")
-        assertNotNull(emulator.emulatorEndpoint, "emulator endpoint cannot be null")
-        if (store == null) {
-            val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
-                .setProjectId("test")
-                .setEmulatorHost(emulator.emulatorEndpoint)
-                .setCredentials(FirestoreOptions.EmulatorCredentials())
-                .setCredentialsProvider(FixedCredentialsProvider.create(FirestoreOptions.EmulatorCredentials()))
-                .build()
-            assertNotNull(firestoreOptions.getService(), "service cannot be null")
-            store = ConnectedCarStore(firestoreOptions.getService())
-        }
-        return store!!
-    }
-
     @Test
     fun testGettingConnectedCars() {
-        val store = getFirestore(emulator)
+        val store = getFirestore()
         assertEquals(emptyList<TrackAndCar>(),  store.getConnectedCars("bad-ip-address"))
 
         store.storeConnectedCarDetails(RequestDetails("test1", "183", "mykey", "good-ip-address"))
@@ -95,39 +67,55 @@ internal class ConnectedCarStoreTest {
 
     @Test
     fun testExpiredDataIgnored() {
-        val store = getFirestore(emulator)
+        val store = getFirestore()
         val storeProxy = spyk(store)
         every { storeProxy.getTimeNow() } returns Timestamp.of(GregorianCalendar(2023, 5, 1).time)
         storeProxy.storeConnectedCarDetails(RequestDetails("test1", "183", "mykey", "outdated-ip-address"))
         assertEquals(emptyList<TrackAndCar>(), store.getConnectedCars("outdated-ip-address"))
     }
 
-//    @Test
-//    fun testGettingStatusOnline() {
-//        store?.storeConnectedCarDetails(RequestDetails("tr1", "100", "mykey", "ip-address"))
-//        val status = store?.getStatus("tr1", "100")
-//        assertEquals(true, status!!.isOnline)
-//        assertEquals("ip-address", status.ipAddress)
-//    }
+    @Test
+    fun testGettingStatusOnline() {
+        val store = getFirestore()
+        store.storeConnectedCarDetails(RequestDetails("tr1", "100", "mykey", "ip-address"))
+        val status = store.getStatus("tr1", "100")
+        assertEquals(true, status!!.isOnline)
+        assertEquals("ip-address", status.ipAddress)
+    }
 
-//    @Test
-//    fun testGettingStatusOffline() {
-//        val storeProxy = spyk(store!!)
-//        every { storeProxy.getTimeNow() } returns Timestamp.of(GregorianCalendar(2023, 5, 1).time)
-//        storeProxy.storeConnectedCarDetails(RequestDetails("tr1", "101", "mykey", "outdated-ip-address"))
-//        val status = store?.getStatus("tr1", "101")
-//        assertEquals(false, status!!.isOnline)
-//        assertEquals("outdated-ip-address", status.ipAddress)
-//    }
+    @Test
+    fun testGettingStatusOffline() {
+        val store = getFirestore()
+        val storeProxy = spyk(store)
+        every { storeProxy.getTimeNow() } returns Timestamp.of(GregorianCalendar(2023, 5, 1).time)
+        storeProxy.storeConnectedCarDetails(RequestDetails("tr1", "101", "mykey", "outdated-ip-address"))
+        val status = store.getStatus("tr1", "101")
+        assertEquals(false, status!!.isOnline)
+        assertEquals("outdated-ip-address", status.ipAddress)
+    }
 
-//    @Test
-//    fun testNoDupeEntriesOnWrite() {
-//        // should be unique between track + car combo
-//        store?.storeConnectedCarDetails(RequestDetails("tr2", "99", "mykey1", "ip1"))
-//        store?.storeConnectedCarDetails(RequestDetails("tr2", "99", "mykey2", "ip2"))
-//        assertNull(store?.findTrack("99", "ip1", null))
-//        assertEquals("tr2", store?.findTrack("99", "ip2", null))
-//    }
+    @Test
+    fun testNoDupeEntriesOnWrite() {
+        val store = getFirestore()
+        // should be unique between track + car combo
+        store.storeConnectedCarDetails(RequestDetails("tr2", "99", "mykey1", "ip1"))
+        store.storeConnectedCarDetails(RequestDetails("tr2", "99", "mykey2", "ip2"))
+        assertNull(store.findTrack("99", "ip1", null))
+        assertEquals("tr2", store.findTrack("99", "ip2", null))
+    }
+
+    private fun getFirestore(): ConnectedCarStore {
+        if (store == null) {
+            val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
+                .setProjectId("test")
+                .setEmulatorHost(emulator.emulatorEndpoint)
+                .setCredentials(FirestoreOptions.EmulatorCredentials())
+                .setCredentialsProvider(FixedCredentialsProvider.create(FirestoreOptions.EmulatorCredentials()))
+                .build()
+            store = ConnectedCarStore(firestoreOptions.service)
+        }
+        return store!!
+    }
 
 }
 

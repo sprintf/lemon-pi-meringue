@@ -70,6 +70,7 @@ internal class ConnectedCarStoreTest {
                 .setProjectId("test")
                 .setEmulatorHost(emulator.emulatorEndpoint)
                 .build()
+            assertNotNull(firestoreOptions.service, "service cannot be null")
             store = ConnectedCarStore(firestoreOptions.service)
         }
         return store!!

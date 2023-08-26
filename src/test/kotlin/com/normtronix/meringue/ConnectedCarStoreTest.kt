@@ -10,6 +10,7 @@ import org.testcontainers.containers.FirestoreEmulatorContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.DockerImageName
+import java.time.Duration
 import java.util.*
 
 // this test class is not able to be tested in the cloud as part of CI very easily
@@ -20,7 +21,9 @@ internal class ConnectedCarStoreTest {
 
     companion object {
         @Container
-        val emulator = FirestoreEmulatorContainer(DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:441.0.0-emulators"))
+        val emulator = FirestoreEmulatorContainer(
+            DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:441.0.0-emulators")
+        ).withStartupTimeout(Duration.ofSeconds(120))
 
         var store: ConnectedCarStore? = null
     }

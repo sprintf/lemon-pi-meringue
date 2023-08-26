@@ -13,9 +13,6 @@ import org.testcontainers.utility.DockerImageName
 import java.time.Duration
 import java.util.*
 
-// this test class is not able to be tested in the cloud as part of CI very easily
-// due to the need to get the firestore emulator running there, and it doesn't run
-// appear to work nicely with gradle so leaving this as a manual test for now.
 @Testcontainers
 internal class ConnectedCarStoreTest {
 
@@ -25,7 +22,7 @@ internal class ConnectedCarStoreTest {
             DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:441.0.0-emulators")
         ).withStartupTimeout(Duration.ofSeconds(120))
 
-   //     var store: ConnectedCarStore? = null
+        private var store: ConnectedCarStore? = null
 
 //        @BeforeAll
 //        @JvmStatic
@@ -54,15 +51,27 @@ internal class ConnectedCarStoreTest {
         assertTrue(emulator.isRunning)
     }
 
-//    @Test
-//    fun findTrack() {
-//        assertNull(store?.findTrack("181", "127.0.0.1", null))
-//
-//        store?.storeConnectedCarDetails(RequestDetails("thil", "181", "mykey", "127.0.0.1"))
-//        assertEquals("thil", store?.findTrack("181", "127.0.0.1", null))
-//        assertEquals("thil", store?.findTrack("181", "127.0.0.2", "mykey"))
-//        assertNull(store?.findTrack("181", "127.0.0.2", "mykey2"))
-//    }
+    @Test
+    fun findTrack() {
+        val store = getFirestore(emulator)
+        assertNull(store.findTrack("181", "127.0.0.1", null))
+
+        store.storeConnectedCarDetails(RequestDetails("thil", "181", "mykey", "127.0.0.1"))
+        assertEquals("thil", store.findTrack("181", "127.0.0.1", null))
+        assertEquals("thil", store.findTrack("181", "127.0.0.2", "mykey"))
+        assertNull(store.findTrack("181", "127.0.0.2", "mykey2"))
+    }
+
+    private fun getFirestore(emulator: FirestoreEmulatorContainer): ConnectedCarStore {
+        if (store == null) {
+            val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
+                .setProjectId("test")
+                .setEmulatorHost(emulator.emulatorEndpoint)
+                .build()
+            store = ConnectedCarStore(firestoreOptions.service)
+        }
+        return store!!
+    }
 
 //    @Test
 //    fun testGettingConnectedCars() {

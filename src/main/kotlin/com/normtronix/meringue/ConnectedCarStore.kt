@@ -22,13 +22,17 @@ import java.util.concurrent.TimeUnit
  * otherwise you'll need to match the keys in order to connect up to a car from slack
  */
 @Component
-class ConnectedCarStore {
+class ConnectedCarStore() {
 
     internal val ONLINE_CARS = "onlineCars"
     private val IP = "ip"
     private val KEY = "key"
     private val TTL = "ttl"
     private val TEN_MINUTES = 10 * 60
+
+    constructor(testDb: Firestore) : this() {
+        this.db = testDb
+    }
 
     @Autowired
     lateinit var db : Firestore

@@ -1,5 +1,6 @@
 package com.normtronix.meringue
 
+import com.google.api.gax.core.FixedCredentialsProvider
 import com.google.cloud.NoCredentials
 import com.google.cloud.Timestamp
 import com.google.cloud.firestore.FirestoreOptions
@@ -71,6 +72,8 @@ internal class ConnectedCarStoreTest {
             val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
                 .setProjectId("test")
                 .setEmulatorHost(emulator.emulatorEndpoint)
+                .setCredentials(FirestoreOptions.EmulatorCredentials())
+                .setCredentialsProvider(FixedCredentialsProvider.create(FirestoreOptions.EmulatorCredentials()))
                 .build()
             assertNotNull(firestoreOptions.getService(), "service cannot be null")
             store = ConnectedCarStore(firestoreOptions.getService())

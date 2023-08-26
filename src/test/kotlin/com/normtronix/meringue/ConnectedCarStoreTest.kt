@@ -26,11 +26,10 @@ internal class ConnectedCarStoreTest {
         ).withStartupTimeout(Duration.ofSeconds(120))
 
         var store: ConnectedCarStore? = null
-    }
 
-    @BeforeEach
-    fun connectToStore() {
-        if (store == null) {
+        @BeforeAll
+        @JvmStatic
+        fun connectToStore() {
             val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
                 .setProjectId("test")
                 .setEmulatorHost(emulator.emulatorEndpoint)

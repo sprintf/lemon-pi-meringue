@@ -41,10 +41,10 @@ internal class ConnectedCarStoreTest {
         }
     }
 
-//    @AfterEach
-//    fun wipeDb() {
-//        store?.wipe()
-//    }
+    @AfterEach
+    fun wipeDb() {
+        getFirestore(emulator).wipe()
+    }
 
     @Test
     fun testEmulatorIsWorking() {
@@ -63,6 +63,8 @@ internal class ConnectedCarStoreTest {
     }
 
     private fun getFirestore(emulator: FirestoreEmulatorContainer): ConnectedCarStore {
+        assertNotNull(emulator, "emulator cannot be null")
+        assertNotNull(emulator.emulatorEndpoint, "emulator endpoint cannot be null")
         if (store == null) {
             val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
                 .setProjectId("test")
@@ -73,24 +75,26 @@ internal class ConnectedCarStoreTest {
         return store!!
     }
 
-//    @Test
-//    fun testGettingConnectedCars() {
-//        assertEquals(emptyList<TrackAndCar>(),  store?.getConnectedCars("bad-ip-address"))
-//
-//        store?.storeConnectedCarDetails(RequestDetails("test1", "183", "mykey", "good-ip-address"))
-//        store?.storeConnectedCarDetails(RequestDetails("test1", "182", "mykey", "good-ip-address"))
-//
-//        val cars = store?.getConnectedCars("good-ip-address")
-//        assertEquals(2, cars?.size)
-//    }
+    @Test
+    fun testGettingConnectedCars() {
+        val store = getFirestore(emulator)
+        assertEquals(emptyList<TrackAndCar>(),  store.getConnectedCars("bad-ip-address"))
 
-//    @Test
-//    fun testExpiredDataIgnored() {
-//        val storeProxy = spyk(store!!)
-//        every { storeProxy.getTimeNow() } returns Timestamp.of(GregorianCalendar(2023, 5, 1).time)
-//        storeProxy.storeConnectedCarDetails(RequestDetails("test1", "183", "mykey", "outdated-ip-address"))
-//        assertEquals(emptyList<TrackAndCar>(), store?.getConnectedCars("outdated-ip-address"))
-//    }
+        store.storeConnectedCarDetails(RequestDetails("test1", "183", "mykey", "good-ip-address"))
+        store.storeConnectedCarDetails(RequestDetails("test1", "182", "mykey", "good-ip-address"))
+
+        val cars = store.getConnectedCars("good-ip-address")
+        assertEquals(2, cars.size)
+    }
+
+    @Test
+    fun testExpiredDataIgnored() {
+        val store = getFirestore(emulator)
+        val storeProxy = spyk(store)
+        every { storeProxy.getTimeNow() } returns Timestamp.of(GregorianCalendar(2023, 5, 1).time)
+        storeProxy.storeConnectedCarDetails(RequestDetails("test1", "183", "mykey", "outdated-ip-address"))
+        assertEquals(emptyList<TrackAndCar>(), store.getConnectedCars("outdated-ip-address"))
+    }
 
 //    @Test
 //    fun testGettingStatusOnline() {

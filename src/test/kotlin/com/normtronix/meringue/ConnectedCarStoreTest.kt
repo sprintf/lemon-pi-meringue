@@ -21,7 +21,7 @@ internal class ConnectedCarStoreTest {
 
     companion object {
         @Container
-        val emulator = FirestoreEmulatorContainer(
+        private val emulator = FirestoreEmulatorContainer(
             DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:441.0.0-emulators")
         ).withStartupTimeout(Duration.ofSeconds(120))
 
@@ -29,18 +29,29 @@ internal class ConnectedCarStoreTest {
 
         @BeforeAll
         @JvmStatic
-        fun connectToStore() {
+        fun connectToStore(): Unit {
             val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
                 .setProjectId("test")
                 .setEmulatorHost(emulator.emulatorEndpoint)
                 .build()
             store = ConnectedCarStore(firestoreOptions.service)
         }
+
+        @AfterAll
+        @JvmStatic
+        fun shutdownFirestore(): Unit {
+            emulator.stop()
+        }
     }
 
     @AfterEach
     fun wipeDb() {
         store?.wipe()
+    }
+
+    @Test
+    fun testEmulatorIsWorking() {
+        assertTrue(emulator.isRunning)
     }
 
     @Test

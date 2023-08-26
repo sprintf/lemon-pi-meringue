@@ -43,7 +43,7 @@ internal class ConnectedCarStoreTest {
 
     @AfterEach
     fun wipeDb() {
-        getFirestore(emulator).wipe()
+        // getFirestore(emulator).wipe()
     }
 
     @Test

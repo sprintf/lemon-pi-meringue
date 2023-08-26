@@ -59,6 +59,10 @@ dependencies {
 	testImplementation("io.grpc:grpc-testing:${grpcVersion}")
 	testImplementation("net.devh:grpc-client-spring-boot-starter:2.13.0.RELEASE")
 	testImplementation("io.mockk:mockk:1.12.2")
+	testImplementation("org.testcontainers:testcontainers:1.19.0")
+	testImplementation("org.testcontainers:junit-jupiter:1.19.0")
+	testImplementation("org.testcontainers:gcloud:1.19.0")
+
 }
 
 dependencyManagement {

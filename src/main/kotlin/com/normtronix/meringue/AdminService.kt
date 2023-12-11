@@ -133,6 +133,9 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         return bldr.build()
     }
 
+    internal fun isRaceConnected(trackCode: String, raceId: String) =
+        activeMap.containsKey(Handle(trackCode, raceId))
+
     override suspend fun connectToRaceData(request: MeringueAdmin.ConnectToRaceDataRequest): MeringueAdmin.RaceDataConnectionResponse {
         request.provider // should be RM or RH
         request.trackCode // should be valid

@@ -11,10 +11,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Component
-import java.io.BufferedReader
-import java.io.FileReader
 import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.stream.Collectors
@@ -73,11 +70,13 @@ class RaceSchedule : InitializingBean, EventHandler {
         Date.from(raceDay.toInstant().plus(20, ChronoUnit.HOURS))
 
     private fun loadSchedule(): RaceSeries {
-        val resource = ClassPathResource("race-schedule.json")
-        val fr = BufferedReader(FileReader(resource.file))
-        return GsonBuilder().apply {
+        log.info("loading race schedule from race-schedule.json")
+        val resourceReader = object {}.javaClass.getResourceAsStream("/race-schedule.json")?.bufferedReader()
+        val result = GsonBuilder().apply {
             this.setDateFormat("MM/dd/yyyy")
-        }.create().fromJson(fr, RaceSeries::class.java)
+        }.create().fromJson(resourceReader, RaceSeries::class.java)
+        log.info("loaded ${result.series.size} races in series")
+        return result
     }
 
     override suspend fun handleEvent(e: Event) {

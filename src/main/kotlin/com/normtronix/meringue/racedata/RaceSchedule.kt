@@ -73,11 +73,13 @@ class RaceSchedule : InitializingBean, EventHandler {
         Date.from(raceDay.toInstant().plus(20, ChronoUnit.HOURS))
 
     private fun loadSchedule(): RaceSeries {
-        val resource = ClassPathResource("race-schedule.json")
-        val fr = BufferedReader(FileReader(resource.file))
-        return GsonBuilder().apply {
+        log.info("loading race schedule from race-schedule.json")
+        val resourceReader = object {}.javaClass.getResourceAsStream("/race-schedule.json")?.bufferedReader()
+        val result = GsonBuilder().apply {
             this.setDateFormat("MM/dd/yyyy")
-        }.create().fromJson(fr, RaceSeries::class.java)
+        }.create().fromJson(resourceReader, RaceSeries::class.java)
+        log.info("loaded ${result.series.size} races in series")
+        return result
     }
 
     override suspend fun handleEvent(e: Event) {

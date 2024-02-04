@@ -49,6 +49,7 @@ dependencies {
 	implementation("io.grpc:grpc-kotlin-stub:0.1.5")
 	implementation("com.google.cloud:google-cloud-firestore")
 	implementation("com.slack.api:slack-api-client:1.27.1")
+	implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 
 	implementation("com.pusher:pusher-java-client:2.4.2")
 

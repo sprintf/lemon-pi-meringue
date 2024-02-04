@@ -9,6 +9,8 @@ import com.normtronix.meringue.racedata.RaceOrder
 import com.normtronix.meringue.racedata.RaceView
 import io.mockk.every
 import io.mockk.mockkObject
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -29,8 +31,8 @@ internal class CarDataServiceTest {
         runBlocking {
             val cds = CarDataService()
             cds.afterPropertiesSet()
-            assertEquals(0, cds.driverMessageMap.size())
-            assertEquals(0, cds.telemetryMap.size())
+            assertEquals(0, cds.driverMessageMap.asMap().size)
+            assertEquals(0, cds.telemetryMap.asMap().size)
             CarTelemetryEvent("track", "car", 1, 60.0F, 100, 0).emit()
             val ev1 = cds.telemetryMap.getIfPresent("track:car")
             assertEquals(100, ev1?.coolantTemp)

@@ -1,6 +1,6 @@
 package com.normtronix.meringue
 
-import com.google.common.cache.CacheBuilder
+import com.github.benmanes.caffeine.cache.Caffeine
 import com.google.protobuf.Empty
 import com.normtronix.meringue.event.*
 import com.normtronix.meringue.racedata.InvalidRaceId
@@ -119,12 +119,12 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
 
     internal class NoSuchCarException(s: String) : Exception(s)
 
-    internal val driverMessageMap = CacheBuilder
+    internal val driverMessageMap = Caffeine
         .newBuilder()
-        .expireAfterWrite(60, TimeUnit.SECONDS)
+        .expireAfterWrite(15, TimeUnit.SECONDS)
         .build<String, DriverMessageEvent>()
 
-    internal val telemetryMap = CacheBuilder
+    internal val telemetryMap = Caffeine
         .newBuilder()
         .expireAfterWrite(120, TimeUnit.SECONDS)
         .build<String, CarTelemetryEvent>()

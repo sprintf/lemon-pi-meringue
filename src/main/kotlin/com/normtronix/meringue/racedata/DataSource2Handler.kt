@@ -29,8 +29,8 @@ class DataSource2Handler(private val leaderboard: RaceOrder,
         leaderboard.setFlagStatus(trackCode, convertFlagStatus(payload.latestFlag))
     }
 
-    private fun convertFlagStatus(flag: FlagRH): String {
-        return when (flag.color.lowercase()) {
+    private fun convertFlagStatus(flag: FlagRH?): String {
+        return when (flag?.color?.lowercase()) {
             "green" -> "green"
             "red" -> "red"
             "yellow" -> "yellow"

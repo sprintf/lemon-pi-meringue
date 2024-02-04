@@ -48,7 +48,7 @@ data class Payload(
     @SerializedName("ended_at")
     val endedAt: String,
     @SerializedName("latest_flag")
-    val latestFlag : FlagRH,
+    val latestFlag : FlagRH?,
     val passings: List<PassingRH>,
     @SerializedName("racer_sessions")
     val sessions: List<RacerSessionRH>,

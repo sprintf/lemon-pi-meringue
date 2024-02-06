@@ -25,6 +25,7 @@ internal class ServerChannelTest {
                         "99",
                         "foo",
                         ""))) {
+                    delay(50)
                     s.sendMessageFromCar(createPittingMessage("99", 1))
                 }
                 val j2 = launch(requestor.asContextElement(
@@ -41,6 +42,7 @@ internal class ServerChannelTest {
                         "99",
                         "foo",
                         ""))) {
+                    delay(100)
                     s.sendMessageFromCar(createPittingMessage("99", 2))
                 }
                 launch {
@@ -71,6 +73,7 @@ internal class ServerChannelTest {
                         "99-pit",
                         "foo",
                         ""))) {
+                    delay(50)
                     s.sendMessageFromPits(createDriverMessage("99", 1))
                 }
                 val j2 = launch(requestor.asContextElement(
@@ -87,6 +90,7 @@ internal class ServerChannelTest {
                         "99-pit",
                         "foo",
                         ""))) {
+                    delay(100)
                     s.sendMessageFromPits(createDriverMessage("99", 2))
                 }
                 launch {

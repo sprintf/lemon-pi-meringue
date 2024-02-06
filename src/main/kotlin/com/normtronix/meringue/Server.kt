@@ -199,7 +199,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         }
         if (!index[currentTrack]?.containsKey(currentCar)!!) {
             log.info("new channel created for recipient $currentCar")
-            val result = ChannelAndKey(MutableSharedFlow<T>(0, 0, BufferOverflow.DROP_OLDEST), currentKey)
+            val result = ChannelAndKey(MutableSharedFlow<T>(0, 5, BufferOverflow.DROP_OLDEST), currentKey)
             index[currentTrack]?.set(currentCar, result)
             return result.channel
         } else {
@@ -210,7 +210,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
             // the channel is already here ... but it may be toast
             if (channelAndKey == null) {
                 log.info("replacement channel created for recipient $currentCar")
-                val result = ChannelAndKey(MutableSharedFlow<T>(0, 0, BufferOverflow.DROP_OLDEST), currentKey)
+                val result = ChannelAndKey(MutableSharedFlow<T>(0, 5, BufferOverflow.DROP_OLDEST), currentKey)
                 index[currentTrack]?.set(currentCar, result)
                 return result.channel
             }

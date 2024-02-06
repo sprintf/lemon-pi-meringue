@@ -75,23 +75,22 @@ internal class ServerTest {
             val observer = SO<LemonPi.ToPitMessage>()
 
             coroutineScope {
-                launch {
-                    stub.withCallCredentials(carCreds).sendMessageFromCar(ping)
-                }
-
-                launch {
-                    delay(10)
-                    stub.withCallCredentials(carCreds).sendMessageFromCar(ping)
-                }
 
                 launch {
                     asyncStub?.withCallCredentials(pitCreds)?.receiveCarMessages(carNumber, observer)
                 }
 
-                suspend {
-                    delay(500)
+                launch {
+                    delay(100)
+                    stub.withCallCredentials(carCreds).sendMessageFromCar(ping)
                 }
 
+                launch {
+                    delay(110)
+                    stub.withCallCredentials(carCreds).sendMessageFromCar(ping)
+                }
+
+                delay(500)
             }
             assertEquals(2, observer.capture.size)
         }

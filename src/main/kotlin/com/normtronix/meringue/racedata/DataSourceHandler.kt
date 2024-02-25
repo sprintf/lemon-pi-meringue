@@ -96,19 +96,23 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
 
 
     internal fun convertToSeconds(rawTime: String): Double {
-        val timeFields = rawTime.trim('"').split(':')
-        val hours = timeFields[0].toInt()
-        val minutes = timeFields[1].toInt()
-        val seconds = when ("." in timeFields[2]) {
-            true -> {
-                val fields = timeFields[2].split(".")
-                fields[0].toInt() + fields[1].toInt() / 1000.0
+        try {
+            val timeFields = rawTime.trim('"').split(':')
+            val hours = timeFields[0].toInt()
+            val minutes = timeFields[1].toInt()
+            val seconds = when ("." in timeFields[2]) {
+                true -> {
+                    val fields = timeFields[2].split(".")
+                    fields[0].toInt() + fields[1].toInt() / 1000.0
+                }
+                false -> timeFields[2].toDouble()
             }
-            false -> timeFields[2].toDouble()
+            return hours * 3600.0 +
+                    minutes * 60.0 +
+                    seconds
+        } catch (e: IndexOutOfBoundsException) {
+            throw DateTimeParseException(e.message, rawTime, 0)
         }
-        return hours * 3600.0 +
-                minutes * 60.0 +
-                seconds
     }
 
     companion object {

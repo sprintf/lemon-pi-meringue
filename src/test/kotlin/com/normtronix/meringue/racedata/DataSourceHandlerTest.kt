@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.io.BufferedReader
 import java.io.FileReader
+import java.time.format.DateTimeParseException
 
 internal class DataSourceHandlerTest {
 
@@ -23,6 +24,14 @@ internal class DataSourceHandlerTest {
     fun testMoreThan24Hours() {
         val ds = DataSourceHandler(RaceOrder(), "thil", 0, setOf())
         assertEquals(97335.123, ds.convertToSeconds("27:02:15.123"))
+    }
+
+    @Test
+    fun testTimeTruncated() {
+        val ds = DataSourceHandler(RaceOrder(), "thil", 0, setOf())
+        assertThrows(DateTimeParseException::class.java) {
+            ds.convertToSeconds("27:0")
+        }
     }
 
     class TestHandler: EventHandler {

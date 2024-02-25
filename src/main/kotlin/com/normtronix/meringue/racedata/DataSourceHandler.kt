@@ -4,8 +4,6 @@ import com.normtronix.meringue.event.*
 import kotlinx.coroutines.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 class DataSourceHandler(private val leaderboard: RaceOrder,
@@ -98,18 +96,19 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
 
 
     internal fun convertToSeconds(rawTime: String): Double {
-        val time = rawTime.trim('"')
-        val formatString = if (time.contains(".")) {
-            "HH:mm:ss.SSS"
-        } else {
-            "HH:mm:ss"
+        val timeFields = rawTime.trim('"').split(':')
+        val hours = timeFields[0].toInt()
+        val minutes = timeFields[1].toInt()
+        val seconds = when ("." in timeFields[2]) {
+            true -> {
+                val fields = timeFields[2].split(".")
+                fields[0].toInt() + fields[1].toInt() / 1000.0
+            }
+            false -> timeFields[2].toDouble()
         }
-        val f = DateTimeFormatter.ofPattern(formatString)
-        val timeAmount = LocalTime.parse(time, f)
-        return timeAmount.hour * 3600.0 +
-                timeAmount.minute * 60.0 +
-                timeAmount.second +
-                (timeAmount.nano / 1000000000.0)
+        return hours * 3600.0 +
+                minutes * 60.0 +
+                seconds
     }
 
     companion object {

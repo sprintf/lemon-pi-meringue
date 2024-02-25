@@ -19,6 +19,12 @@ internal class DataSourceHandlerTest {
         assertEquals(127.007, ds.convertToSeconds("00:02:07.007"))
     }
 
+    @Test
+    fun testMoreThan24Hours() {
+        val ds = DataSourceHandler(RaceOrder(), "thil", 0, setOf())
+        assertEquals(97335.123, ds.convertToSeconds("27:02:15.123"))
+    }
+
     class TestHandler: EventHandler {
 
         val callbackCount: MutableMap<String, Int> = mutableMapOf()

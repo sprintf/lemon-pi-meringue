@@ -43,13 +43,24 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                             leaderboard.addClass(bits[1], bits[2].trim('"'))
                         }
                         "\$F" -> {
+                            // $F,9999,"00:00:00","10:00:48","00:00:00","      "
+                            // 9999 -> laps remaining
+                            // "00:00:00" -> time remaining
+                            // "10:00:48" -> current time
+                            // "00:00:00" -> elapsed time in race
                             if (bits.size == 6) {
                                 val newFlag = bits[5].trim('"',' ')
-                                leaderboard.setFlagStatus(trackCode, newFlag)
+                                if (bits[4].trim('"') == "00:00:00" && newFlag.isEmpty()) {
+                                    // effectively make the race yellow until it has started
+                                    leaderboard.setFlagStatus(trackCode, "Yellow")
+                                } else {
+                                    leaderboard.setFlagStatus(trackCode, newFlag)
+                                }
                             }
                         }
                         // note : these appear to arrive in the order J, G, H
                         "\$G" -> {
+                            // $G,25,"10",34,"01:52:31.206"
                             if (bits.size == 5) {
                                 val carNumber = bits[2].trim('"')
                                 // if we get updates saying they completed null laps then ignore it
@@ -68,6 +79,7 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                             }
                         }
                         "\$H" -> {
+                            // $H,66,"10",27,"00:02:35.467"
                             if (bits.size == 5) {
                                 val carNumber = bits[2].trim('"')
                                 leaderboard.updateFastestLap(carNumber, bits[3].trim('"').toInt(), convertToSeconds(bits[4]))

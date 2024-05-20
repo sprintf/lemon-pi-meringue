@@ -96,6 +96,22 @@ internal class DataSourceHandlerTest {
     }
 
     @Test
+    fun yellowAtRaceStart()  {
+        //  9999,"00:00:00","10:00:48","00:00:00","      "
+        val rawLine1 = "\$F,9999,\"00:00:00\",\"10:00:48\",\"00:00:00\",\"      \""
+        val rawLine2 = "\$F,9999,\"00:00:00\",\"10:00:48\",\"00:00:01\",\"Green \""
+        val leaderboard = RaceOrder()
+        val ds = DataSourceHandler(leaderboard, "thil", 0, setOf())
+        leaderboard.raceStatus = "whatever"
+        runBlocking {
+            ds.handleWebSocketMessage(rawLine1)
+            assertEquals("Yellow", leaderboard.raceStatus)
+            ds.handleWebSocketMessage(rawLine2)
+            assertEquals("Green", leaderboard.raceStatus)
+        }
+    }
+
+    @Test
     fun parseLine() {
         val rawLine1 = "\$RMHL \"23\" \"11\" \"1\" \"00:01:26.000\" \"Green \" \"00:16:19.395\""
         val rawLine2 = "\$RMHL \"22\" \"11\" \"2\" \"00:01:28.883\" \"Green \" \"00:16:25.395\""

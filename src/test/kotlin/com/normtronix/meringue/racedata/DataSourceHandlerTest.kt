@@ -32,6 +32,10 @@ internal class DataSourceHandlerTest {
         assertThrows(DateTimeParseException::class.java) {
             ds.convertToSeconds("27:0")
         }
+
+        assertThrows(DateTimeParseException::class.java) {
+            ds.convertToSeconds("")
+        }
     }
 
     class TestHandler: EventHandler {

@@ -29,18 +29,32 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                 if (bits.isNotEmpty()) {
                     when (bits[0]) {
                         "\$COMP" -> {
-                            val teamName = when (bits.size) {
-                                4 -> { "" }
-                                5 -> { bits[4].trim('"') }
-                                in 6..20 -> { bits[4].trim('"') + " " +  bits[5].trim('"') }
-                                else -> { "unknown "}
+                            if (bits.size >= 4) {
+                                val teamName = when (bits.size) {
+                                    4 -> {
+                                        ""
+                                    }
+                                    5 -> {
+                                        bits[4].trim('"')
+                                    }
+                                    in 6..20 -> {
+                                        bits[4].trim('"') + " " + bits[5].trim('"')
+                                    }
+                                    else -> {
+                                        "unknown "
+                                    }
+                                }
+                                leaderboard.addCar(
+                                    bits[1].trim('"'),
+                                    teamName,
+                                    classId = bits[3]
+                                )
                             }
-                            leaderboard.addCar(bits[1].trim('"'),
-                                teamName,
-                                classId = bits[3])
                         }
                         "\$C" -> {
-                            leaderboard.addClass(bits[1], bits[2].trim('"'))
+                            if (bits.size >= 3) {
+                                leaderboard.addClass(bits[1], bits[2].trim('"'))
+                            }
                         }
                         "\$F" -> {
                             // $F,9999,"00:00:00","10:00:48","00:00:00","      "
@@ -122,6 +136,8 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
             return hours * 3600.0 +
                     minutes * 60.0 +
                     seconds
+        } catch (e: NumberFormatException) {
+            throw DateTimeParseException(e.message, rawTime, 0)
         } catch (e: IndexOutOfBoundsException) {
             throw DateTimeParseException(e.message, rawTime, 0)
         }

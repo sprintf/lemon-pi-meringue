@@ -29,13 +29,8 @@ internal class DataSourceHandlerTest {
     @Test
     fun testTimeTruncated() {
         val ds = DataSourceHandler(RaceOrder(), "thil", 0, setOf())
-        assertThrows(DateTimeParseException::class.java) {
-            ds.convertToSeconds("27:0")
-        }
-
-        assertThrows(DateTimeParseException::class.java) {
-            ds.convertToSeconds("")
-        }
+        assertEquals(0.0, ds.convertToSeconds("27:0"))
+        assertEquals(0.0, ds.convertToSeconds(""))
     }
 
     class TestHandler: EventHandler {

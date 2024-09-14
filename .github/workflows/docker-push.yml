@@ -15,7 +15,7 @@ jobs:
       - name: sync code
         uses: actions/checkout@v2
       - name: pull in previous artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: bootJar
           path: build/libs

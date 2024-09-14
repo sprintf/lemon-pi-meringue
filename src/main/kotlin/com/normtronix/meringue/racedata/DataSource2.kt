@@ -14,20 +14,8 @@ import com.pusher.client.util.HttpChannelAuthorizer
 import kotlinx.coroutines.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.net.URL
 import java.nio.charset.Charset
-
-// TODO
-// pull in whole page of data at start
-// grab the control channel name too ... the one without provate
-// detect when its not up yet and fail
-// detect when the stream hasn't started
-// detect when the stream has finished
-// write our debug file of the stream
-// write out standard file landing page
-// implement support for "warmup" -> Green flag condition
-// tidy up printlns
 
 data class FlagRH(
     @SerializedName("flag_type")

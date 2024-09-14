@@ -45,6 +45,7 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
             )
             if (requestDetails != null) {
                 requestor.set(requestDetails)
+                log.debug("authenticated. requestor identified")
                 return requestor.asContextElement()
             }
         } catch (e: Exception) {

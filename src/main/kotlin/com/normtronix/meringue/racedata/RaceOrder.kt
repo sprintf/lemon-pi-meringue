@@ -38,21 +38,15 @@ class RaceOrder {
         var gapToFrontDelta: Double = 0.0
 
         override fun compareTo(other: Car): Int {
-            // todo : base this on nullable field rather than negativelable field
-            if (this.lapsCompleted == 0 && other.lapsCompleted == 0) {
-                return this.carNumber.compareTo(other.carNumber)
-            }
             val lapDiff = other.lapsCompleted - this.lapsCompleted
             if (lapDiff != 0) {
                 return lapDiff
+            } else {
+                if (this.lapsCompleted == 0 && other.lapsCompleted == 0) {
+                    return this.carNumber.compareTo(other.carNumber)
+                }
+                return (this.lastLapTimestamp - other.lastLapTimestamp).toInt()
             }
-            if (this.lastLapTimestamp == 0L) {
-                return -1
-            }
-            if (other.lastLapTimestamp == 0L) {
-                return 1
-            }
-            return (this.lastLapTimestamp - other.lastLapTimestamp).toInt()
         }
     }
 
@@ -81,6 +75,9 @@ class RaceOrder {
      * Update the position of a car in the race
      */
     fun updatePosition(carNumber: String, position: Int, lapCount: Int, timestamp: Double) {
+        if (timestamp == 0.0) {
+            return
+        }
         numberLookup[carNumber]?.let {
             it.position = position
             it.lapsCompleted = lapCount
@@ -114,12 +111,18 @@ class RaceOrder {
     }
 
     fun updateLastLap(carNumber: String, lapTimeSeconds: Double) {
+        if (lapTimeSeconds == 0.0) {
+            return
+        }
         numberLookup[carNumber]?.let {
             it.lastLapTime = lapTimeSeconds
         }
     }
 
     fun updateFastestLap(carNumber: String, fastestLap: Int, lapTimeSeconds: Double) {
+        if (lapTimeSeconds == 0.0) {
+            return
+        }
         numberLookup[carNumber]?.let {
             it.fastestLap = fastestLap
             it.fastestLapTime = lapTimeSeconds

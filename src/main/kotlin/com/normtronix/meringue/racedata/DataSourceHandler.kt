@@ -119,11 +119,16 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
         }
     }
 
-
-
+    /*
+     * convert an incoming time to seconds. These times are often garbled so we return
+     * 0.0 in that case. Callers should be prepared to ignore zero values
+     */
     internal fun convertToSeconds(rawTime: String): Double {
         try {
             val timeFields = rawTime.trim('"').split(':')
+            if (timeFields.size != 3) {
+                return 0.0
+            }
             val hours = timeFields[0].toInt()
             val minutes = timeFields[1].toInt()
             val seconds = when ("." in timeFields[2]) {

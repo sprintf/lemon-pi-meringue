@@ -44,6 +44,7 @@ dependencies {
 
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
 
+	implementation("com.google.protobuf:protobuf-java:${protobufVersion}")
 	implementation("io.grpc:grpc-protobuf:${grpcVersion}")
 	implementation("io.grpc:grpc-stub:${grpcVersion}")
 	implementation("io.grpc:grpc-kotlin-stub:0.1.5")

@@ -2,6 +2,7 @@ package com.normtronix.meringue.racedata
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import java.util.stream.Collectors
 
 internal class RaceOrderTest {
 
@@ -178,6 +179,77 @@ internal class RaceOrderTest {
         race.updatePosition("701", 1, 2, 1000.0)
         race.updatePosition("10", 2, 2, 1001.0)
         assertEquals(-0.1, race.numberLookup["10"]!!.gapToFrontDelta, 0.05)
+    }
+
+    @Test
+    fun testOrdering1() {
+        val cars = listOf(
+            RaceOrder.Car("244", "volv", "B").apply {
+                this.lapsCompleted = 0
+            },
+            RaceOrder.Car("181", "pp", "A").apply {
+                this.lapsCompleted = 0
+            },
+            RaceOrder.Car("95", "wnker", "A").apply {
+                this.lapsCompleted = 0
+            }
+        )
+        val result = cars.stream().sorted().collect(Collectors.toList())
+        assertEquals("181", result[0].carNumber)
+    }
+
+    @Test
+    fun testOrdering2() {
+        val cars = listOf(
+            RaceOrder.Car("15", "arg", "B").apply {
+                this.lapsCompleted = 12
+                this.lastLapTimestamp = 5502
+            },
+            RaceOrder.Car("181", "pp", "A").apply {
+                this.lapsCompleted = 12
+                this.lastLapTimestamp = 5500
+            },
+            RaceOrder.Car("95", "wnker", "A").apply {
+                this.lapsCompleted = 12
+                this.lastLapTimestamp = 5501
+            }
+        )
+        val result = cars.stream().sorted().collect(Collectors.toList())
+        assertEquals("181", result[0].carNumber)
+    }
+
+    @Test
+    fun testOrdering3() {
+        val cars = listOf(
+            RaceOrder.Car("15", "arg", "B").apply {
+                this.lapsCompleted = 10
+            },
+            RaceOrder.Car("181", "pp", "A").apply {
+                this.lapsCompleted = 12
+            },
+            RaceOrder.Car("95", "wnker", "A").apply {
+                this.lapsCompleted = 11
+            }
+        )
+        val result = cars.stream().sorted().collect(Collectors.toList())
+        assertEquals("181", result[0].carNumber)
+    }
+
+    @Test
+    fun testOrdering4() {
+        val cars = listOf(
+            RaceOrder.Car("15", "arg", "B").apply {
+                this.lapsCompleted = -1
+            },
+            RaceOrder.Car("181", "pp", "A").apply {
+                this.lapsCompleted = 0
+            },
+            RaceOrder.Car("95", "wnker", "A").apply {
+                this.lapsCompleted = -11
+            }
+        )
+        val result = cars.stream().sorted().collect(Collectors.toList())
+        assertEquals("181", result[0].carNumber)
     }
 
     private fun assertRaceOrder(view: RaceView, vararg expectedCarNumbers: String) {

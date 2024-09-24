@@ -80,7 +80,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
     var raceDataSourceFactoryFn : (MeringueAdmin.RaceDataProvider, String) -> RaceDataSource =
         fun(provider: MeringueAdmin.RaceDataProvider, x:String) : RaceDataSource {
             return when (provider) {
-                MeringueAdmin.RaceDataProvider.PROVIDER_RM -> DataSource1(x)
+                MeringueAdmin.RaceDataProvider.PROVIDER_RM -> DataSource1b(x)
                 MeringueAdmin.RaceDataProvider.PROVIDER_RH -> DataSource2(x)
                 else -> throw RuntimeException("unknown race provider")
             }

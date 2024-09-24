@@ -32,9 +32,13 @@ class DataSource2Handler(private val leaderboard: RaceOrder,
     private fun convertFlagStatus(flag: FlagRH?): String {
         return when (flag?.color?.lowercase()) {
             "green" -> "green"
+            "green flag" -> "green"
             "red" -> "red"
+            "red flag" -> "red"
             "yellow" -> "yellow"
+            "yellow flag" -> "yellow"
             "black" -> "black"
+            "black flag" -> "black"
             else -> "unknown"
         }
     }

@@ -4,9 +4,9 @@ import com.google.gson.JsonParser
 import com.normtronix.meringue.event.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.features.*
-import io.ktor.client.features.websocket.*
-import io.ktor.http.cio.websocket.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.websocket.*
+import io.ktor.websocket.*
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -66,7 +66,7 @@ open class DataSource1(val raceId:String) : EventHandler, RaceDataSource {
                 client.webSocket(streamUrl) {
                     log.info("connected to url, timeout = ${this.timeoutMillis},  ping_interval = ${this.pingIntervalMillis}")
                     val joinMsg = "\$JOIN,${fields["instance"]},${fields["token"]}}"
-                    val joinMessage = Frame.byType(true, FrameType.TEXT, joinMsg.encodeToByteArray())
+                    val joinMessage = Frame.byType(true, FrameType.TEXT, joinMsg.encodeToByteArray(), false, false, false)
                     outgoing.send(joinMessage)
                     while (!stopped) {
                         val joinedMessage = StringBuilder()
@@ -88,6 +88,8 @@ open class DataSource1(val raceId:String) : EventHandler, RaceDataSource {
                                     launch {
                                         handler.handleWebSocketMessage(line)
                                     }
+                                } else if (line.trim().isNotEmpty()) {
+                                    log.warn("IGNORING >> $line")
                                 }
                             }
                             if (logRaceData) {

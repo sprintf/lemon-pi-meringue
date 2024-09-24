@@ -75,6 +75,10 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                         // note : these appear to arrive in the order J, G, H
                         "\$G" -> {
                             // $G,25,"10",34,"01:52:31.206"
+                            // [1]  25 position in race
+                            // [2] "10" car number
+                            // [3]  34 laps completed
+                            // [4]  "01:52:31.206"  time spent on track
                             if (bits.size == 5) {
                                 val carNumber = bits[2].trim('"')
                                 // if we get updates saying they completed null laps then ignore it
@@ -93,13 +97,23 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                             }
                         }
                         "\$H" -> {
+                            // Handle fastest lap information
                             // $H,66,"10",27,"00:02:35.467"
+                            // [1]  66 is position in class (or overall?) for fastest lap
+                            // [2]  "10" is car number
+                            // [3]  27 is fastest lap
+                            // [4]  "00:02:35.467" is their fastest lap time
                             if (bits.size == 5) {
                                 val carNumber = bits[2].trim('"')
                                 leaderboard.updateFastestLap(carNumber, bits[3].trim('"').toInt(), convertToSeconds(bits[4]))
                             }
                         }
                         "\$J" -> {
+                            // Last lap time
+                            // $J,"71","00:03:42.155","02:58:04.545"
+                            // [1]  "71" car number
+                            // [2]  "00:03:42.155" last lap
+                            // [3]  "02:58:04.545" total time on track
                             if (bits.size == 4) {
                                 val carNumber = bits[1].trim('"')
                                 leaderboard.updateLastLap(carNumber, convertToSeconds(bits[2]))

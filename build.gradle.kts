@@ -65,6 +65,8 @@ dependencies {
 	testImplementation("org.testcontainers:junit-jupiter:1.19.0")
 	testImplementation("org.testcontainers:gcloud:1.19.0")
 
+	implementation("com.microsoft.playwright:playwright:1.47.0")
+
 }
 
 dependencyManagement {

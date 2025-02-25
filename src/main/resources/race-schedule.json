@@ -1,184 +1,176 @@
 {
   "series": [
     {
-        "start-date": "02/03/2024",
-        "end-date": "02/04/2024",
-        "name": "Shine Country Classic",
-        "track": "Barber Motorsports Park",
-        "location": "Leeds, AL"
+      "start-date": "03/22/2025",
+      "end-date": "03/23/2025",
+      "name": "Sears Pointless 2025",
+      "track": "Sonoma Raceway",
+      "location": "Sonoma, CA",
+      "trackCode": "snma"
     },
     {
-        "start-date": "02/24/2024",
-        "end-date": "02/25/2024",
-        "name": "Jank of the West 2024 (3-Mile)",
-        "track": "Thunderhill Raceway Park",
-        "location": "Willows, CA",
-        "trackCode": "thil"
+      "start-date": "04/05/2025",
+      "end-date": "04/06/2025",
+      "name": "Cain't Git Bayou 2025",
+      "track": "NOLA Motorsports Park",
+      "location": "Avondale, LA",
+      "trackCode": "nmp"
     },
     {
-        "start-date": "03/23/2024",
-        "end-date": "03/24/2024",
-        "name": "Cain’t Git Bayou",
-        "track": "NOLA Motorsports Park",
-        "location": "Avondale, LA",
-        "trackCode": "nmp"
+      "start-date": "04/12/2025",
+      "end-date": "04/13/2025",
+      "name": "The Pitt Maneuver 2025",
+      "track": "Pittsburgh Int'l Race Complex",
+      "location": "Wampum, PA",
+      "trackCode":  "pir"
     },
     {
-        "start-date": "04/13/2024",
-        "end-date": "04/14/2024",
-        "name": "The Pitt Maneuver",
-        "track": "Pittsburgh Int’l Race Complex",
-        "location": "Wampum, PA",
-        "trackCode":  "pir"
+      "start-date": "04/19/2025",
+      "end-date": "04/20/2025",
+      "name": "Pacific Northworst GP 2025",
+      "track": "Pacific Raceways",
+      "location": "Kent, WA",
+      "trackCode": "rdg"
     },
     {
-        "start-date": "04/20/2024",
-        "end-date": "04/21/2024",
-        "name": "Lemons Block Party",
-        "track": "Carolina Motorsports Park",
-        "location": "Kershaw, SC"
+      "start-date": "04/26/2025",
+      "end-date": "04/27/2025",
+      "name": "Lemons Block Party 2025",
+      "track": "Carolina Motorsports Park",
+      "location": "Kershaw, SC"
     },
     {
-        "start-date": "04/27/2024",
-        "end-date": "04/28/2024",
-        "name": "Pacific Northworst GP",
-        "track": "The Ridge Motorsports Park",
-        "location": "Shelton, WA",
-        "trackCode": "rdg"
+      "start-date": "05/03/2025",
+      "end-date": "05/04/2025",
+      "name": "Lemons Hallettosis 2025",
+      "track": "Hallett Motor Racing Circuit",
+      "location": "Jennings, OK"
     },
     {
-        "start-date": "05/04/2024",
-        "end-date": "05/05/2024",
-        "name": "Lemons Hallettosis",
-        "track": "Hallett Motor Racing Circuit",
-        "location": "Jennings, OK"
+      "start-date": "05/10/2025",
+      "end-date": "05/11/2025",
+      "name": "The Rust Belt GP 2025",
+      "track": "GingerMan Raceway",
+      "location": "South Haven, MI",
+      "trackCode": "gngr"
     },
     {
-        "start-date": "05/11/2024",
-        "end-date": "05/12/2024",
-        "name": "The Rust Belt GP",
-        "track": "GingerMan Raceway",
-        "location": "South Haven, MI",
-        "trackCode": "gngr"
+      "start-date": "05/31/2025",
+      "end-date": "06/01/2025",
+      "name": "Days of Thunderhill 2025",
+      "track": "Thunderhill Raceway Park",
+      "location": "Willows, CA",
+      "trackCode": "thil"
     },
     {
-        "start-date": "05/18/2024",
-        "end-date": "05/19/2024",
-        "name": "Targa Florida",
-        "track": "Sebring Int’l Raceway",
-        "location": "Sebring, FL",
-        "trackCode": "sbrg"
+      "start-date": "06/07/2025",
+      "end-date": "06/08/2025",
+      "name": "Real Hoopties of New Jersey 2025",
+      "track": "New Jersey Motorsports Park",
+      "location": "Millville, NJ",
+      "trackCode": "njmp"
     },
     {
-        "start-date": "05/25/2024",
-        "end-date": "05/26/2024",
-        "name": "Days of Thunderhill",
-        "track": "Thunderhill Raceway Park 5-Mile Course",
-        "location": "Willows, CA",
-        "trackCode": "thil"
+      "start-date": "06/14/2025",
+      "end-date": "06/15/2025",
+      "name": "The B.F.E. GP 2025",
+      "track": "High Plains Raceway",
+      "location": "Deer Trail, CO",
+      "trackCode": "hpr"
     },
     {
-        "start-date": "06/01/2024",
-        "end-date": "06/02/2024",
-        "name": "The B.F.E. GP (Full 24 Hours)",
-        "track": "High Plains Raceway",
-        "location": "Deer Trail, CO",
-        "trackCode": "hpr"
+      "start-date": "07/12/2025",
+      "end-date": "07/13/2025",
+      "name": "Doing Time in Joliet 2025",
+      "track": "Autobahn Country Club",
+      "location": "Joliet, IL",
+      "trackCode": "abhn"
     },
     {
-        "start-date": "06/08/2024",
-        "end-date": "06/09/2024",
-        "name": "Real Hoopties of New Jersey",
-        "track": "New Jersey Motorsports Park",
-        "location": "Millville, NJ"
+      "start-date": "08/02/2025",
+      "end-date": "08/03/2025",
+      "name": "GP du Lac Chargoggagogg(etc) 2025",
+      "track": "Thompson Speedway Motorsports Park",
+      "location": "Thompson, CT",
+      "trackCode": "tmsw"
     },
     {
-        "start-date": "07/13/2024",
-        "end-date": "07/14/2024",
-        "name": "Doing Time in Joliet",
-        "track": "Autobahn Country Club",
-        "location": "Joliet, IL",
-        "trackCode": "abhn"
+      "start-date": "08/30/2025",
+      "end-date": "08/31/2025",
+      "name": "Smells Like AMC Spirit 2025",
+      "track": "Pacific Raceways",
+      "location": "Kent, WA"
     },
     {
-        "start-date": "08/03/2024",
-        "end-date": "08/04/2024",
-        "name": "GP du Lac Chargoggagogg(etcetera)",
-        "track": "Thompson Speedway MP",
-        "location": "Thompson, CT",
-        "trackCode": "tmsw"
+      "start-date": "09/06/2025",
+      "end-date": "09/07/2025",
+      "name": "The Sausage Fest 2025",
+      "track": "Road America",
+      "location": "Elkhart Lake, WI",
+      "trackCode": "rdam"
     },
     {
-        "start-date": "09/07/2024",
-        "end-date": "09/08/2024",
-        "name": "The Sausage Fest",
-        "track": "Road America",
-        "location": "Elkhart Lake, WI",
-        "trackCode": "rdam"
+      "start-date": "09/13/2025",
+      "end-date": "09/14/2025",
+      "name": "High Plains Drifter 2025 (Full 24 Hrs)",
+      "track": "High Plains Raceway",
+      "location": "Deer Trail, CO",
+      "trackCode": "hpr"
     },
     {
-        "start-date": "09/07/2024",
-        "end-date": "09/08/2024",
-        "name": "High Plains Drifter",
-        "track": "High Plains Raceway",
-        "location": "Deer Trail, CO",
-        "trackCode": "hpr"
+      "start-date": "09/20/2025",
+      "end-date": "09/21/2025",
+      "name": "The Colonel & The Sinkhole 2025",
+      "track": "NCM Motorsports Park",
+      "location": "Bowling Green, KY",
+      "trackCode": "ncmp"
     },
     {
-        "start-date": "09/14/2024",
-        "end-date": "09/15/2024",
-        "name": "Smells Like AMC Spirit",
-        "track": "Pacific Raceways",
-        "location": "Kent, WA",
-        "trackCode": "prw"
+      "start-date": "09/27/2025",
+      "end-date": "09/28/2025",
+      "name": "Button Turrible 2025",
+      "track": "Buttonwillow Raceway Park",
+      "location": "Buttonwillow, CA",
+      "trackCode": "btnw"
     },
     {
-        "start-date": "09/21/2024",
-        "end-date": "09/22/2024",
-        "name": "The Colonel & The Sinkhole",
-        "track": "NCM Motorsports Park",
-        "location": "Bowling Green, KY",
-        "trackCode": "ncmp"
+      "start-date": "10/18/2025",
+      "end-date": "10/19/2025",
+      "name": "Halloween Hooptiefest 2025",
+      "track": "New Hampshire Motor Speedway",
+      "location": "Loudon, NH",
+      "trackCode": "nhms"
     },
     {
-        "start-date": "09/28/2024",
-        "end-date": "09/29/2024",
-        "name": "Button Turrible",
-        "track": "Buttonwillow Raceway Park",
-        "location": "Buttonwillow, CA",
-        "trackCode": "btnw"
+      "start-date": "10/25/2025",
+      "end-date": "10/26/2025",
+      "name": "Capitol Offense 2025",
+      "track": "Summit Point Motorsports Park",
+      "location": "Summit Point, WV"
     },
     {
-        "start-date": "10/19/2024",
-        "end-date": "10/20/2024",
-        "name": "Halloween Hooptiefest",
-        "track": "New Hampshire Motor Speedway",
-        "location": "Loudon, NH",
-        "trackCode": "nhms"
+      "start-date": "11/08/2025",
+      "end-date": "11/09/2025",
+      "name": "Texas Tippin' 2025",
+      "track": "MSR Houston",
+      "location": "Angleton, TX",
+      "trackCode": "msrh"
     },
     {
-        "start-date": "11/02/2024",
-        "end-date": "11/03/2024",
-        "name": "Texas Tippin’",
-        "track": "MSR Houston",
-        "location": "Angleton, TX",
-        "trackCode": "msrh"
+      "start-date": "11/22/2025",
+      "end-date": "11/23/2025",
+      "name": "Arse-Freeze-Apalooza 2025",
+      "track": "Sonoma Raceway",
+      "location": "Sonoma, CA",
+      "trackCode": "snma"
     },
     {
-        "start-date": "12/07/2024",
-        "end-date": "12/08/2024",
-        "name": "Arse-Freeze-Apalooza",
-        "track": "Sonoma Raceway",
-        "location": "Sonoma, CA",
-        "trackCode": "snma"
-    },
-    {
-        "start-date": "12/14/2024",
-        "end-date": "12/15/2024",
-        "name": "The Kim Harmon Scrotium 500",
-        "track": "Road Atlanta",
-        "location": "Braselton, GA",
-        "trackCode": "rdatl"
+      "start-date": "12/13/2025",
+      "end-date": "12/14/2025",
+      "name": "The Kim Harmon Scrotium 500 2025",
+      "track": "Road Atlanta",
+      "location": "Braselton, GA",
+      "trackCode": "rdatl"
     }
   ]
 }

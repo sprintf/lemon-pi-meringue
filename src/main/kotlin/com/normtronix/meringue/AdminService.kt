@@ -81,7 +81,6 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         fun(provider: MeringueAdmin.RaceDataProvider, x:String) : RaceDataSource {
             return when (provider) {
                 MeringueAdmin.RaceDataProvider.PROVIDER_RM -> DataSource1b(x)
-                MeringueAdmin.RaceDataProvider.PROVIDER_RH -> DataSource2(x)
                 else -> throw RuntimeException("unknown race provider")
             }
         }
@@ -210,7 +209,6 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         log.info("launching thread to run $raceId @ $trackCode")
         val newRace = RaceOrder()
         val dsHandler = when (provider) {
-            MeringueAdmin.RaceDataProvider.PROVIDER_RH -> DataSource2Handler(newRace, trackCode, getConnectedCars(trackCode))
             MeringueAdmin.RaceDataProvider.PROVIDER_RM -> DataSourceHandler(newRace, trackCode, delayLapCompletedEvent.toLong(), getConnectedCars(trackCode))
             else -> throw RuntimeException("unknown race data source")
         }

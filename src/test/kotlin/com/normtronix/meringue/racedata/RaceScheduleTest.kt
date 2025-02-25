@@ -51,7 +51,6 @@ internal class RaceScheduleTest {
         runBlocking {
             val rs = RaceSchedule()
             rs.raceLister1 = DS1RaceLister()
-            rs.raceLister2 = DS2RaceLister()
             rs.adminService = mockk()
             // rs.adminService.trackMetaData = TrackMetaDataLoader()
             // rs.adminService.logRaceData = "false"

@@ -27,9 +27,7 @@ jobs:
         uses: gradle/actions/wrapper-validation@v3
       - name: Build with Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          arguments: build
-      - run: gradle bootJar
+      - run: ./gradlew bootJar
       - name: Upload Jar
         uses: actions/upload-artifact@v4
         with:

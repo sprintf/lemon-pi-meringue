@@ -22,6 +22,14 @@ java.sourceCompatibility = JavaVersion.VERSION_11
 
 repositories {
 	mavenCentral()
+	maven {
+		name = "GitHubPackages"
+		url = uri("https://maven.pkg.github.com/sprintf/lemon-pi-protos")
+		credentials {
+			username = System.getenv("GITHUB_ACTOR")
+			password = System.getenv("GITHUB_TOKEN")
+		}
+	}
 }
 
 extra["springCloudGcpVersion"] = "2.0.6"
@@ -29,8 +37,7 @@ extra["springCloudVersion"] = "2020.0.4"
 extra["gcpLibrariesVersion"] = "26.17.0"
 
 dependencies {
-
-	implementation(project(":lemon-pi-protos"))
+	implementation("com.normtronix:lemon-pi-protos:1.0")
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-security")

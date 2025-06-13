@@ -11,13 +11,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: remove symlink to lemon-pi-protos
-        run: rm ./lemon-pi-protos
-      - name: Checkout Protos
-        uses: actions/checkout@v4
-        with:
-          repository: sprintf/lemon-pi-protos
-          path: ./lemon-pi-protos
 
       - name: Set up JDK 17
         uses: actions/setup-java@v1

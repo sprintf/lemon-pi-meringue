@@ -21,6 +21,9 @@ jobs:
       - name: Build with Gradle
         uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew bootJar
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Jar
         uses: actions/upload-artifact@v4
         with:

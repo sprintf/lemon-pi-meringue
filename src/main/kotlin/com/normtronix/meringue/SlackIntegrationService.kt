@@ -3,6 +3,9 @@ package com.normtronix.meringue
 import com.google.cloud.firestore.Firestore
 import com.normtronix.meringue.event.*
 import com.slack.api.Slack
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
@@ -49,42 +52,44 @@ class SlackIntegrationService(): InitializingBean, EventHandler {
     }
 
     @Scheduled(fixedDelayString = "5", timeUnit = TimeUnit.MINUTES)
-    internal fun loadSlackKeys() {
-        db.collection("lemon_pi_slack").get().get()?.documents?.forEach {
-            if (it.contains(CAR_NUMBER) &&
-                    it.contains(TRACK_CODE) &&
-                    it.contains(SLACK_TOKEN)) {
-                slackKeys[buildKey(it[TRACK_CODE] as String, it[CAR_NUMBER] as String)] =
-                    it[SLACK_TOKEN] as String
+    internal fun loadSlackKeys() = runBlocking {
+        withContext(Dispatchers.IO) {
+            db.collection("lemon_pi_slack").get().get()?.documents?.forEach {
+                val trackCode = it.getString(TRACK_CODE)
+                val carNumber = it.getString(CAR_NUMBER)
+                val slackToken = it.getString(SLACK_TOKEN)
 
-                if (it.contains(SLACK_PIT_CHANNEL)) {
-                    slackPitChannels[buildKey(it[TRACK_CODE] as String, it[CAR_NUMBER] as String)] =
-                        it[SLACK_PIT_CHANNEL] as String
-                }
+                if (trackCode != null && carNumber != null && slackToken != null) {
+                    val key = buildKey(trackCode, carNumber)
+                    slackKeys[key] = slackToken
 
-                if (it.contains(SLACK_INFO_CHANNEL)) {
-                    slackInfoChannels[buildKey(it[TRACK_CODE] as String, it[CAR_NUMBER] as String)] =
-                        it[SLACK_INFO_CHANNEL] as String
+                    it.getString(SLACK_PIT_CHANNEL)?.let { channel ->
+                        slackPitChannels[key] = channel
+                    }
+
+                    it.getString(SLACK_INFO_CHANNEL)?.let { channel ->
+                        slackInfoChannels[key] = channel
+                    }
                 }
             }
         }
     }
 
-    fun createCarConnection(trackCode: String, carNumber: String, slackAppId: String, slackToken: String) {
-
-
+    suspend fun createCarConnection(trackCode: String, carNumber: String, slackAppId: String, slackToken: String) {
         // todo : dont create if it already exists
         // todo : delete if this token is associated with the car at another track
-        db.collection("lemon-pi-slack")
-            .document(slackAppId).
-            set(hashMapOf(
-                TRACK_CODE to trackCode,
-                CAR_NUMBER to carNumber,
-                SLACK_TOKEN to slackToken,
-                SLACK_PIT_CHANNEL to "car-pitting",
-                SLACK_INFO_CHANNEL to "car-race-info",
-            ).toMap())
-            .get(500, TimeUnit.MILLISECONDS)
+        withContext(Dispatchers.IO) {
+            db.collection("lemon-pi-slack")
+                .document(slackAppId)
+                .set(hashMapOf(
+                    TRACK_CODE to trackCode,
+                    CAR_NUMBER to carNumber,
+                    SLACK_TOKEN to slackToken,
+                    SLACK_PIT_CHANNEL to "car-pitting",
+                    SLACK_INFO_CHANNEL to "car-race-info",
+                ).toMap())
+                .get(500, TimeUnit.MILLISECONDS)
+        }
     }
 
     fun getCarsForSlackToken(slackToken: String): List<TrackAndCar>? {

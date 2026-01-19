@@ -105,7 +105,9 @@ class DataSourceHandler(private val leaderboard: RaceOrder,
                             // [4]  "00:02:35.467" is their fastest lap time
                             if (bits.size == 5) {
                                 val carNumber = bits[2].trim('"')
-                                leaderboard.updateFastestLap(carNumber, bits[3].trim('"').toInt(), convertToSeconds(bits[4]))
+                                bits[3].trim('"').toIntOrNull()?.let { fastestLap ->
+                                    leaderboard.updateFastestLap(carNumber, fastestLap, convertToSeconds(bits[4]))
+                                }
                             }
                         }
                         "\$J" -> {

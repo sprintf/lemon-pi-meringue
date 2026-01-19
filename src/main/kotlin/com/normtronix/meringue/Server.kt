@@ -3,7 +3,6 @@ package com.normtronix.meringue
 import com.google.protobuf.Empty
 import com.normtronix.meringue.ContextInterceptor.Companion.requestor
 import com.normtronix.meringue.event.*
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
@@ -32,9 +31,6 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     var seqNo = 1
 
     init {
-        CoroutineExceptionHandler { _, exception ->
-            log.warn("CoroutineExceptionHandler got $exception")
-        }
         Events.register(RaceStatusEvent::class.java, this)
         Events.register(LapCompletedEvent::class.java, this)
     }
@@ -49,7 +45,9 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         val currentCar = requestDetails.carNum
         val currentKey = requestDetails.key
         // todo : make sure that the car is the one sending from itself
-        log.info("car ${currentTrack}/${currentCar} sending message")
+        if (!request.hasPing()) {
+            log.info("car ${currentTrack}/${currentCar} sending message")
+        }
         getSendChannel(currentTrack, currentCar, currentKey, toPitIndex).emit(request)
         introspectToPitMessage(currentTrack, currentCar, request)
         return Empty.getDefaultInstance()
@@ -194,28 +192,20 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         currentKey: String,
         index: MutableMap<String, MutableMap<String, ChannelAndKey<T>>>
     ): MutableSharedFlow<T> {
-        if (!index.containsKey(currentTrack)) {
-            index[currentTrack] = mutableMapOf()
-        }
-        if (!index[currentTrack]?.containsKey(currentCar)!!) {
+        val trackMap = index.getOrPut(currentTrack) { mutableMapOf() }
+        val existingChannelAndKey = trackMap[currentCar]
+
+        if (existingChannelAndKey == null) {
             log.info("new channel created for recipient $currentCar")
             val result = ChannelAndKey(MutableSharedFlow<T>(0, 5, BufferOverflow.DROP_OLDEST), currentKey)
-            index[currentTrack]?.set(currentCar, result)
+            trackMap[currentCar] = result
             return result.channel
-        } else {
-            val channelAndKey = index[currentTrack]?.get(currentCar)
-            if (channelAndKey != null && channelAndKey.radioKey != currentKey) {
-                throw MismatchedKeyException()
-            }
-            // the channel is already here ... but it may be toast
-            if (channelAndKey == null) {
-                log.info("replacement channel created for recipient $currentCar")
-                val result = ChannelAndKey(MutableSharedFlow<T>(0, 5, BufferOverflow.DROP_OLDEST), currentKey)
-                index[currentTrack]?.set(currentCar, result)
-                return result.channel
-            }
-            return channelAndKey.channel
         }
+
+        if (existingChannelAndKey.radioKey != currentKey) {
+            throw MismatchedKeyException()
+        }
+        return existingChannelAndKey.channel
     }
 
     private fun extractTargetCar(request: LemonPi.ToCarMessage): String {
@@ -230,7 +220,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         } else if (request.hasSetFuel()) {
             request.setFuel.carNumber
         } else {
-            throw Exception("unable to extract car number from request ")
+            throw InvalidCarMessageException("unable to extract car number from request")
         }
     }
 
@@ -333,4 +323,6 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
 }
 
 class MismatchedKeyException: Exception()
+
+class InvalidCarMessageException(message: String): Exception(message)
 

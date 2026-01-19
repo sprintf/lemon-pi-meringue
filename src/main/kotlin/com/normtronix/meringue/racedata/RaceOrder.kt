@@ -45,7 +45,7 @@ class RaceOrder {
                 if (this.lapsCompleted == 0 && other.lapsCompleted == 0) {
                     return this.carNumber.compareTo(other.carNumber)
                 }
-                return (this.lastLapTimestamp - other.lastLapTimestamp).toInt()
+                return this.lastLapTimestamp.compareTo(other.lastLapTimestamp)
             }
         }
     }

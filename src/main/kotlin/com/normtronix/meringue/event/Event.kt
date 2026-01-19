@@ -84,7 +84,9 @@ open class Event(val debounce: Boolean = false) {
             log.info("suppressing $this")
             return
         }
-        log.info("emitting $this")
+        if (this !is GpsPositionEvent) {
+            log.info("emitting $this")
+        }
         val event = this
         // for each of the handlers, call them
         val handlers = Events.registry[this.javaClass]

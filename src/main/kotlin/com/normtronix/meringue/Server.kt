@@ -45,7 +45,9 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         val currentCar = requestDetails.carNum
         val currentKey = requestDetails.key
         // todo : make sure that the car is the one sending from itself
-        log.info("car ${currentTrack}/${currentCar} sending message")
+        if (!request.hasPing()) {
+            log.info("car ${currentTrack}/${currentCar} sending message")
+        }
         getSendChannel(currentTrack, currentCar, currentKey, toPitIndex).emit(request)
         introspectToPitMessage(currentTrack, currentCar, request)
         return Empty.getDefaultInstance()

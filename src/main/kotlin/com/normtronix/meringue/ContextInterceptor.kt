@@ -52,6 +52,7 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
             log.warn("unexpected exception", e)
         }
         log.info("Auth decoding failed for '$authHeader'")
+        requestor.remove()
         return EmptyCoroutineContext
     }
 

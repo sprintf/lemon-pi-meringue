@@ -7,8 +7,10 @@ import com.normtronix.meringue.MeringueAdmin.CarStatusSlackRequest
 import com.normtronix.meringue.event.RaceDisconnectEvent
 import com.normtronix.meringue.racedata.*
 import io.grpc.Status
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import net.devh.boot.grpc.server.advice.GrpcAdvice
@@ -24,6 +26,7 @@ import org.springframework.boot.SpringApplication
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.BadCredentialsException
+import javax.annotation.PreDestroy
 import java.io.IOException
 import java.lang.management.ManagementFactory
 import java.lang.management.ThreadMXBean
@@ -34,9 +37,19 @@ import java.util.stream.Collectors
 @GrpcAdvice
 @Configuration
 @kotlinx.coroutines.ExperimentalCoroutinesApi
-class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), InitializingBean {
+open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), InitializingBean {
+
+    // Service-scoped coroutine scope for managing race data connections
+    // Uses SupervisorJob so one failed connection doesn't cancel others
+    private val serviceScope = CoroutineScope(SupervisorJob())
 
     private val activeMap = mutableMapOf<Handle, Job>()
+
+    @PreDestroy
+    fun cleanup() {
+        log.info("AdminService shutting down, cancelling coroutine scope")
+        serviceScope.cancel()
+    }
 
     @Autowired
     lateinit var appContext: ApplicationContext
@@ -110,8 +123,8 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
     }
 
     override suspend fun auth(request: MeringueAdmin.AuthRequest): MeringueAdmin.AuthResponse {
-        if (request.username.equals(this.adminUsername) &&
-                request.password.equals(this.adminPassword)) {
+        if (request.username == this.adminUsername &&
+                request.password == this.adminPassword) {
             val token = authService.createTokenForUser(request.username)
 
             return MeringueAdmin.AuthResponse.newBuilder()
@@ -143,7 +156,8 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
 
         // next see if theres a connection already
         val key = Handle(request.trackCode, request.providerId)
-        if (activeMap.containsKey(key) && activeMap[key]!!.isActive) {
+        val existingJob = activeMap[key]
+        if (existingJob?.isActive == true) {
             return MeringueAdmin.RaceDataConnectionResponse.newBuilder()
                 .setTrackName(getTrackName(request.trackCode))
                 .setTrackCode(request.trackCode)
@@ -173,7 +187,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
     override suspend fun getCarStatus(request: CarStatusSlackRequest): MeringueAdmin.CarStatusResponse {
         log.info("fetching car status for slack token ${request.slackToken}")
         val builder = MeringueAdmin.CarStatusResponse.newBuilder()
-        slackService.getCarsForSlackToken(request.slackToken)?.stream()?.forEach { trackAndCar ->
+        slackService.getCarsForSlackToken(request.slackToken)?.forEach { trackAndCar ->
             connectedCarStore.getStatus(trackAndCar.trackCode, trackAndCar.carNumber)?.let { status ->
                 builder.addStatusList(MeringueAdmin.CarStatus.newBuilder().apply {
                     this.trackCode = trackAndCar.trackCode
@@ -188,8 +202,8 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
 
     override suspend fun associateCarWithSlack(request: MeringueAdmin.CarAddViaSlackRequest): MeringueAdmin.CarStatusResponse {
         log.info("looking for a car on wifi network ${request.ipAddress}")
-        connectedCarStore.getConnectedCars(request.ipAddress).stream().forEach {
-            slackService.createCarConnection(it.trackCode, it.carNumber, request.slackAppId, request.slackToken)
+        for (car in connectedCarStore.getConnectedCars(request.ipAddress)) {
+            slackService.createCarConnection(car.trackCode, car.carNumber, request.slackAppId, request.slackToken)
         }
         return getCarStatus(CarStatusSlackRequest.newBuilder().apply {
             this.slackToken = request.slackToken
@@ -213,7 +227,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
             else -> throw RuntimeException("unknown race data source")
         }
 
-        val jobId = GlobalScope.launch(newSingleThreadContext("thread-${trackCode}")) {
+        val jobId = serviceScope.launch(newSingleThreadContext("thread-${trackCode}")) {
             raceMap[trackCode] = newRace
             raceDataSource.stream(
                 streamUrl,
@@ -383,6 +397,7 @@ class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), Initial
         companion object {
             fun fromString(handle: String): Handle {
                 val segments = handle.split(":")
+                require(segments.size >= 2) { "Invalid handle format: expected 'trackCode:providerId', got '$handle'" }
                 return Handle(segments[0], segments[1])
             }
         }

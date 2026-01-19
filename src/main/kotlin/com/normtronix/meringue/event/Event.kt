@@ -1,7 +1,12 @@
 package com.normtronix.meringue.event
 
 import com.normtronix.meringue.LemonPi
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.stream.Collectors
@@ -15,6 +20,10 @@ class Events {
 
     companion object {
         val registry: MutableMap<Class<*>, MutableList<HandlerAndFilter>> = mutableMapOf()
+
+        // Application-scoped coroutine scope for async event emission
+        // Uses SupervisorJob so one failed event doesn't cancel others
+        private val eventScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
         /**
          * Register to hear about a type of event when it is emitted.
@@ -51,13 +60,20 @@ class Events {
                 }
         }
 
+        fun launchAsync(block: suspend () -> Unit) {
+            eventScope.launch { block() }
+        }
+
+        fun shutdown() {
+            eventScope.cancel()
+        }
+
         var lastEmittedEvent: Event? = null
     }
 
     data class HandlerAndFilter(val handler: EventHandler, val filter: (Event) -> Boolean)
 }
 
-@OptIn(DelicateCoroutinesApi::class)
 open class Event(val debounce: Boolean = false) {
 
     suspend fun emit() {
@@ -85,7 +101,7 @@ open class Event(val debounce: Boolean = false) {
     }
 
     fun emitAsync() {
-        GlobalScope.async { emit() }
+        Events.launchAsync { emit() }
     }
 
     companion object {

@@ -5,6 +5,7 @@ import com.google.cloud.Timestamp
 import com.google.cloud.firestore.FirestoreOptions
 import io.mockk.every
 import io.mockk.spyk
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.testcontainers.containers.FirestoreEmulatorContainer
@@ -43,7 +44,7 @@ internal class ConnectedCarStoreTest {
     }
 
     @Test
-    fun findTrack() {
+    fun findTrack() = runBlocking {
         val store = getFirestore()
         assertNull(store.findTrack("181", "127.0.0.1", null))
 
@@ -54,7 +55,7 @@ internal class ConnectedCarStoreTest {
     }
 
     @Test
-    fun testGettingConnectedCars() {
+    fun testGettingConnectedCars() = runBlocking {
         val store = getFirestore()
         assertEquals(emptyList<TrackAndCar>(),  store.getConnectedCars("bad-ip-address"))
 
@@ -66,7 +67,7 @@ internal class ConnectedCarStoreTest {
     }
 
     @Test
-    fun testExpiredDataIgnored() {
+    fun testExpiredDataIgnored() = runBlocking {
         val store = getFirestore()
         val storeProxy = spyk(store)
         every { storeProxy.getTimeNow() } returns Timestamp.of(GregorianCalendar(2023, 5, 1).time)
@@ -75,7 +76,7 @@ internal class ConnectedCarStoreTest {
     }
 
     @Test
-    fun testGettingStatusOnline() {
+    fun testGettingStatusOnline() = runBlocking {
         val store = getFirestore()
         store.storeConnectedCarDetails(RequestDetails("tr1", "100", "mykey", "ip-address"))
         val status = store.getStatus("tr1", "100")
@@ -84,7 +85,7 @@ internal class ConnectedCarStoreTest {
     }
 
     @Test
-    fun testGettingStatusOffline() {
+    fun testGettingStatusOffline() = runBlocking {
         val store = getFirestore()
         val storeProxy = spyk(store)
         every { storeProxy.getTimeNow() } returns Timestamp.of(GregorianCalendar(2023, 5, 1).time)
@@ -95,7 +96,7 @@ internal class ConnectedCarStoreTest {
     }
 
     @Test
-    fun testNoDupeEntriesOnWrite() {
+    fun testNoDupeEntriesOnWrite() = runBlocking {
         val store = getFirestore()
         // should be unique between track + car combo
         store.storeConnectedCarDetails(RequestDetails("tr2", "99", "mykey1", "ip1"))

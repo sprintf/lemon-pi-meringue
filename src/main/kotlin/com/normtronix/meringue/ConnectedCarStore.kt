@@ -3,6 +3,8 @@ package com.normtronix.meringue
 import com.google.cloud.Timestamp
 import com.google.cloud.firestore.DocumentSnapshot
 import com.google.cloud.firestore.Firestore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -62,15 +64,15 @@ class ConnectedCarStore() {
         val ipAddress: String?
     )
 
-    fun getStatus(trackCode: String, carNumber: String): CarConnectedStatus? {
+    suspend fun getStatus(trackCode: String, carNumber: String): CarConnectedStatus? = withContext(Dispatchers.IO) {
         val doc = db.collection(ONLINE_CARS).document("$trackCode:$carNumber").get().get()
-        return when (doc.contains(TTL) and doc.contains(IP)) {
+        when (doc.contains(TTL) and doc.contains(IP)) {
             true -> CarConnectedStatus(isRecentTTL(doc), doc.getString(IP))
             else -> null
         }
     }
 
-    fun getConnectedCars(ipAddress: String) : List<TrackAndCar> {
+    suspend fun getConnectedCars(ipAddress: String) : List<TrackAndCar> = withContext(Dispatchers.IO) {
         // performance hint : we could work out the track from the ip address
         val result = mutableListOf<TrackAndCar>()
         db.collection(ONLINE_CARS).listDocuments().forEach {
@@ -81,25 +83,23 @@ class ConnectedCarStore() {
                 }
             }
         }
-        return result
+        result
     }
 
     private fun isRecentTTL(doc: DocumentSnapshot) =
         System.currentTimeMillis() / 1000 - doc.getTimestamp(TTL)!!.seconds < TEN_MINUTES
 
-    fun findTrack(carNumber: String, ipAddr: String, key: String?): String? {
+    suspend fun findTrack(carNumber: String, ipAddr: String, key: String?): String? = withContext(Dispatchers.IO) {
+        var result: String? = null
         db.collectionGroup(ONLINE_CARS).get().get()?.documents?.forEach {
-            if (it.id.contains(":$carNumber")) {
+            if (result == null && it.id.contains(":$carNumber")) {
                 val trackAndCar = TrackAndCar.from(it.id)
-                if (ipAddr == it.get(IP)) {
-                    return trackAndCar.trackCode
-                }
-                if (it.get(KEY) == key) {
-                    return trackAndCar.trackCode
+                if (ipAddr == it.get(IP) || it.get(KEY) == key) {
+                    result = trackAndCar.trackCode
                 }
             }
         }
-        return null
+        result
     }
 
 

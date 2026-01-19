@@ -217,7 +217,7 @@ internal class AdminServiceTest {
             admin.slackService = mockk("foo")
             admin.connectedCarStore = mockk("bar")
             every { admin.slackService.getCarsForSlackToken("slack") } returns listOf(TrackAndCar("tr1", "181"))
-            every { admin.connectedCarStore.getStatus("tr1", "181") } returns
+            coEvery { admin.connectedCarStore.getStatus("tr1", "181") } returns
                     ConnectedCarStore.CarConnectedStatus(true, "0:0:0:0")
             val request = CarStatusSlackRequest.newBuilder().apply { this.slackToken = "slack" }.build()
             val result = admin.getCarStatus(request)
@@ -239,7 +239,7 @@ internal class AdminServiceTest {
                     listOf(TrackAndCar("tr1", "181"),
                     TrackAndCar("tr1", "182"),
                     TrackAndCar("tr1", "183"))
-            every { admin.connectedCarStore.getStatus("tr1", any()) } returns
+            coEvery { admin.connectedCarStore.getStatus("tr1", any()) } returns
                     ConnectedCarStore.CarConnectedStatus(true, "0:0:0:0")
             val request = CarStatusSlackRequest.newBuilder().apply { this.slackToken = "slack" }.build()
             val result = admin.getCarStatus(request)
@@ -253,7 +253,7 @@ internal class AdminServiceTest {
             val admin = AdminService()
             admin.slackService = mockk("foo")
             admin.connectedCarStore = mockk("bar")
-            every { admin.connectedCarStore.getConnectedCars("127.0.0.1") } returns emptyList()
+            coEvery { admin.connectedCarStore.getConnectedCars("127.0.0.1") } returns emptyList()
             every { admin.slackService.getCarsForSlackToken("slack") } returns emptyList()
             val request = CarAddViaSlackRequest.newBuilder().apply {
                 this.slackToken = "slack"
@@ -270,11 +270,11 @@ internal class AdminServiceTest {
             val admin = AdminService()
             admin.slackService = mockk("foo")
             admin.connectedCarStore = mockk("bar")
-            every { admin.connectedCarStore.getConnectedCars("127.0.0.1") } returns listOf(TrackAndCar("tr1", "181"))
-            every { admin.slackService.createCarConnection("tr1", "181", "app", "token") } returns
+            coEvery { admin.connectedCarStore.getConnectedCars("127.0.0.1") } returns listOf(TrackAndCar("tr1", "181"))
+            coEvery { admin.slackService.createCarConnection("tr1", "181", "app", "token") } returns
                     Unit
             every { admin.slackService.getCarsForSlackToken("token") } returns listOf(TrackAndCar("tr1", "181"))
-            every { admin.connectedCarStore.getStatus("tr1", "181")} returns ConnectedCarStore.CarConnectedStatus(true, "127.0.0.1")
+            coEvery { admin.connectedCarStore.getStatus("tr1", "181")} returns ConnectedCarStore.CarConnectedStatus(true, "127.0.0.1")
             val request = CarAddViaSlackRequest.newBuilder().apply {
                 this.slackToken = "token"
                 this.ipAddress = "127.0.0.1"

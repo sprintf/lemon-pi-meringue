@@ -38,7 +38,7 @@ class MailService() {
             val response = httpClient.post("https://api.mailgun.net/v3/$mailgunDomain/messages") {
                 header(HttpHeaders.Authorization, "Basic ${Base64.getEncoder().encodeToString("api:$apiKey".toByteArray())}")
                 setBody(FormDataContent(Parameters.build {
-                    append("from", "Lemon Pi <noreply@$mailgunDomain>")
+                    append("from", "Lemons Racer <noreply@$mailgunDomain>")
                     append("to", toEmail)
                     append("template", "welcome-pit")
                     append("h:X-Mailgun-Variables", """{"email":"$toEmail","domain":"$mailgunDomain","carNumber":"$carNumber"}""")

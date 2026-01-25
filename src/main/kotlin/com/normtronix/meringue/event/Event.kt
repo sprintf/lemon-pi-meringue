@@ -168,7 +168,8 @@ class CarTelemetryEvent(
     val lapCount: Int,
     val lastLapTimeSec: Float,
     val coolantTemp: Int,
-    val fuelRemainingPercent: Int
+    val fuelRemainingPercent: Int,
+    val extraSensors: Map<String, Int> = emptyMap()
 ) : Event() {
 
     override fun toString(): String {
@@ -229,5 +230,26 @@ class CarLeavingPitEvent(
 
     override fun toString(): String {
         return "PitExitEvent : $carNumber ($trackCode)"
+    }
+}
+
+class NewDeviceRegisteredEvent(
+    val deviceId: String,
+    val trackCode: String,
+    val carNumber: String
+): Event() {
+
+    override fun toString(): String {
+        return "NewDeviceRegisteredEvent : device=$deviceId track=$trackCode car=$carNumber"
+    }
+}
+
+class NewEmailAddressAddedEvent(
+    val email: String,
+    val carNumber: String
+): Event() {
+
+    override fun toString(): String {
+        return "NewEmailAddressAddedEvent : email=$email car=$carNumber"
     }
 }

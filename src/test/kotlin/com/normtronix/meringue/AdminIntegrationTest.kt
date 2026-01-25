@@ -39,10 +39,16 @@ internal class AdminIntegrationTest {
     lateinit var connectedCars: ConnectedCarStore
 
     @MockBean
+    lateinit var deviceStore: DeviceDataStore
+
+    @MockBean
     lateinit var authService: AuthService
 
     @MockBean
     lateinit var slackService: SlackIntegrationService
+
+    @MockBean
+    lateinit var emailService: EmailAddressService
 
     @Autowired
     lateinit var adminService: AdminService

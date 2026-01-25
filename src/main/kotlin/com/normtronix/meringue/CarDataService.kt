@@ -107,6 +107,7 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
             telemetryMap.getIfPresent(key)?.apply {
                 bldr.coolantTemp = this.coolantTemp
                 bldr.fuelRemainingPercent = this.fuelRemainingPercent
+                bldr.putAllExtraSensors(this.extraSensors)
             }
             driverMessageMap.getIfPresent(key)?.apply {
                 bldr.driverMessage = this.message

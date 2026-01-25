@@ -15,7 +15,9 @@ internal class ServerChannelTest {
         runBlocking {
             val s = Server()
             s.carStore = mockk()
+            s.deviceStore = mockk()
             every { s.carStore.storeConnectedCarDetails(any()) } returns Unit
+            every { s.deviceStore.storeDeviceDetails(any()) } returns Unit
 
             val collector = PitMessageCollector(s, "99")
             coroutineScope {
@@ -24,6 +26,7 @@ internal class ServerChannelTest {
                         "thil",
                         "99",
                         "foo",
+                        "0f1a7e93",
                         ""))) {
                     delay(50)
                     s.sendMessageFromCar(createPittingMessage("99", 1))
@@ -33,6 +36,7 @@ internal class ServerChannelTest {
                         "thil",
                         "99-pit",
                         "foo",
+                        "0f1a7e93",
                         ""))) {
                     collector.getMessages()
                 }
@@ -41,6 +45,7 @@ internal class ServerChannelTest {
                         "thil",
                         "99",
                         "foo",
+                        "0f1a7e93",
                         ""))) {
                     delay(100)
                     s.sendMessageFromCar(createPittingMessage("99", 2))
@@ -63,7 +68,9 @@ internal class ServerChannelTest {
         runBlocking {
             val s = Server()
             s.carStore = mockk()
+            s.deviceStore = mockk()
             every { s.carStore.storeConnectedCarDetails(any()) } returns Unit
+            every { s.deviceStore.storeDeviceDetails(any()) } returns Unit
 
             val collector = CarMessageCollector(s, "99")
             coroutineScope {
@@ -72,6 +79,7 @@ internal class ServerChannelTest {
                         "thil",
                         "99-pit",
                         "foo",
+                        "0f1a7e93",
                         ""))) {
                     delay(50)
                     s.sendMessageFromPits(createDriverMessage("99", 1))
@@ -81,6 +89,7 @@ internal class ServerChannelTest {
                         "thil",
                         "99",
                         "foo",
+                        "0f1a7e93",
                         ""))) {
                     collector.getMessages()
                 }
@@ -89,6 +98,7 @@ internal class ServerChannelTest {
                         "thil",
                         "99-pit",
                         "foo",
+                        "0f1a7e93",
                         ""))) {
                     delay(100)
                     s.sendMessageFromPits(createDriverMessage("99", 2))

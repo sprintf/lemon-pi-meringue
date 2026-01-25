@@ -1,8 +1,6 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.springframework.boot.gradle.tasks.bundling.BootJar
 
 val protobufVersion: String by project
-val protobufPluginVersion: String by project
 val grpcVersion: String by project
 val ktorVersion: String by project
 
@@ -37,7 +35,7 @@ extra["springCloudVersion"] = "2020.0.4"
 extra["gcpLibrariesVersion"] = "26.17.0"
 
 dependencies {
-	implementation("com.normtronix:lemon-pi-protos:1.0")
+	implementation("com.normtronix:lemon-pi-protos:1.2")
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-security")
@@ -57,6 +55,7 @@ dependencies {
 	implementation("io.grpc:grpc-kotlin-stub:0.1.5")
 	implementation("com.google.cloud:google-cloud-firestore")
 	implementation("com.slack.api:slack-api-client:1.27.1")
+	implementation("com.auth0:java-jwt:4.4.0")
 	implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 
 	implementation("com.pusher:pusher-java-client:2.4.2")
@@ -68,9 +67,7 @@ dependencies {
 	testImplementation("io.grpc:grpc-testing:${grpcVersion}")
 	testImplementation("net.devh:grpc-client-spring-boot-starter:2.13.0.RELEASE")
 	testImplementation("io.mockk:mockk:1.12.2")
-	testImplementation("org.testcontainers:testcontainers:1.19.0")
-	testImplementation("org.testcontainers:junit-jupiter:1.19.0")
-	testImplementation("org.testcontainers:gcloud:1.19.0")
+	testImplementation("io.ktor:ktor-client-mock:$ktorVersion")
 
 	implementation("com.microsoft.playwright:playwright:1.47.0")
 

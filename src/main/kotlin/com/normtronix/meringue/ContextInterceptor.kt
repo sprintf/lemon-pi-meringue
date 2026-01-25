@@ -74,7 +74,12 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
         if (!trackMetaDataLoader.isValidTrackCode(firstSegment[0])) {
             return null
         }
-        return RequestDetails(firstSegment[0], firstSegment[1], segments[1], remoteIpAddr)
+        val deviceId = when (segments.size) {
+            1 -> ""
+            2 -> ""
+            else -> segments[2]
+        }
+        return RequestDetails(firstSegment[0], firstSegment[1], segments[1], deviceId, remoteIpAddr)
     }
 
 
@@ -88,6 +93,7 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
 open class RequestDetails(
     val trackCode: String,
     val carNum: String,
-    val key: String,
+    val teamCode: String,
+    val deviceId: String,
     val remoteIpAddr: String
 )

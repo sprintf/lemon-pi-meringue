@@ -16,7 +16,7 @@ internal class ContextInterceptorTest {
         val result = s.buildContext("abcd/181:foo", tracks, "")
         assertEquals("abcd", result?.trackCode)
         assertEquals("181", result?.carNum)
-        assertEquals("foo", result?.key)
+        assertEquals("foo", result?.teamCode)
     }
 
     @Test

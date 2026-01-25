@@ -1,84 +1,117 @@
 package com.normtronix.meringue
 
-import com.google.api.gax.core.FixedCredentialsProvider
+import com.google.api.core.ApiFutures
 import com.google.cloud.Timestamp
-import com.google.cloud.firestore.FirestoreOptions
-import io.mockk.every
-import io.mockk.spyk
+import com.google.cloud.firestore.*
+import io.mockk.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
-import org.testcontainers.containers.FirestoreEmulatorContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
-import org.testcontainers.utility.DockerImageName
-import java.time.Duration
 import java.util.*
 
-@Testcontainers
 internal class ConnectedCarStoreTest {
 
-    companion object {
-        @Container
-        private val emulator = FirestoreEmulatorContainer(
-            DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:441.0.0-emulators")
-        ).withStartupTimeout(Duration.ofSeconds(120))
+    private lateinit var db: Firestore
+    private lateinit var collection: CollectionReference
+    private lateinit var store: ConnectedCarStore
 
-        private var store: ConnectedCarStore? = null
+    @BeforeEach
+    fun setup() {
+        db = mockk()
+        collection = mockk()
+        every { db.collection("onlineCars") } returns collection
+        store = ConnectedCarStore(db)
+    }
 
-        @AfterAll
-        @JvmStatic
-        fun shutdownFirestore() {
-            emulator.stop()
+    @Test
+    fun findTrackByIp() = runBlocking {
+        val querySnapshot = mockQuerySnapshot(listOf(
+            mockQueryDocSnapshot("thil:181", mapOf("ip" to "127.0.0.1", "key" to "mykey"))
+        ))
+        every { db.collectionGroup("onlineCars") } returns mockk {
+            every { get() } returns ApiFutures.immediateFuture(querySnapshot)
         }
-    }
 
-    @AfterEach
-    fun wipeDb() {
-        getFirestore().wipe()
-    }
-
-    @Test
-    fun testEmulatorIsWorking() {
-        assertTrue(emulator.isRunning)
-    }
-
-    @Test
-    fun findTrack() = runBlocking {
-        val store = getFirestore()
-        assertNull(store.findTrack("181", "127.0.0.1", null))
-
-        store.storeConnectedCarDetails(RequestDetails("thil", "181", "mykey", "127.0.0.1"))
         assertEquals("thil", store.findTrack("181", "127.0.0.1", null))
-        assertEquals("thil", store.findTrack("181", "127.0.0.2", "mykey"))
-        assertNull(store.findTrack("181", "127.0.0.2", "mykey2"))
+    }
+
+    @Test
+    fun findTrackByKey() = runBlocking {
+        val querySnapshot = mockQuerySnapshot(listOf(
+            mockQueryDocSnapshot("thil:181", mapOf("ip" to "127.0.0.1", "key" to "mykey"))
+        ))
+        every { db.collectionGroup("onlineCars") } returns mockk {
+            every { get() } returns ApiFutures.immediateFuture(querySnapshot)
+        }
+
+        assertEquals("thil", store.findTrack("181", "different-ip", "mykey"))
+    }
+
+    @Test
+    fun findTrackNotFound() = runBlocking {
+        val querySnapshot = mockQuerySnapshot(emptyList())
+        every { db.collectionGroup("onlineCars") } returns mockk {
+            every { get() } returns ApiFutures.immediateFuture(querySnapshot)
+        }
+
+        assertNull(store.findTrack("181", "127.0.0.1", null))
+    }
+
+    @Test
+    fun findTrackWrongKey() = runBlocking {
+        val querySnapshot = mockQuerySnapshot(listOf(
+            mockQueryDocSnapshot("thil:181", mapOf("ip" to "127.0.0.1", "key" to "mykey"))
+        ))
+        every { db.collectionGroup("onlineCars") } returns mockk {
+            every { get() } returns ApiFutures.immediateFuture(querySnapshot)
+        }
+
+        assertNull(store.findTrack("181", "different-ip", "wrongkey"))
     }
 
     @Test
     fun testGettingConnectedCars() = runBlocking {
-        val store = getFirestore()
-        assertEquals(emptyList<TrackAndCar>(),  store.getConnectedCars("bad-ip-address"))
+        val recentTimestamp = Timestamp.now()
+        val docRef1 = mockDocRef("test1:183", mapOf("ip" to "good-ip", "key" to "k1", "ttl" to recentTimestamp))
+        val docRef2 = mockDocRef("test1:182", mapOf("ip" to "good-ip", "key" to "k2", "ttl" to recentTimestamp))
 
-        store.storeConnectedCarDetails(RequestDetails("test1", "183", "mykey", "good-ip-address"))
-        store.storeConnectedCarDetails(RequestDetails("test1", "182", "mykey", "good-ip-address"))
+        every { collection.listDocuments() } returns listOf(docRef1, docRef2)
 
-        val cars = store.getConnectedCars("good-ip-address")
+        val cars = store.getConnectedCars("good-ip")
         assertEquals(2, cars.size)
     }
 
     @Test
+    fun testGettingConnectedCarsWrongIp() = runBlocking {
+        val recentTimestamp = Timestamp.now()
+        val docRef = mockDocRef("test1:183", mapOf("ip" to "other-ip", "key" to "k1", "ttl" to recentTimestamp))
+
+        every { collection.listDocuments() } returns listOf(docRef)
+
+        val cars = store.getConnectedCars("bad-ip")
+        assertEquals(0, cars.size)
+    }
+
+    @Test
     fun testExpiredDataIgnored() = runBlocking {
-        val store = getFirestore()
-        val storeProxy = spyk(store)
-        every { storeProxy.getTimeNow() } returns Timestamp.of(GregorianCalendar(2023, 5, 1).time)
-        storeProxy.storeConnectedCarDetails(RequestDetails("test1", "183", "mykey", "outdated-ip-address"))
-        assertEquals(emptyList<TrackAndCar>(), store.getConnectedCars("outdated-ip-address"))
+        val oldTimestamp = Timestamp.of(GregorianCalendar(2023, 5, 1).time)
+        val docRef = mockDocRef("test1:183", mapOf("ip" to "some-ip", "key" to "k1", "ttl" to oldTimestamp))
+
+        every { collection.listDocuments() } returns listOf(docRef)
+
+        val cars = store.getConnectedCars("some-ip")
+        assertEquals(0, cars.size)
     }
 
     @Test
     fun testGettingStatusOnline() = runBlocking {
-        val store = getFirestore()
-        store.storeConnectedCarDetails(RequestDetails("tr1", "100", "mykey", "ip-address"))
+        val recentTimestamp = Timestamp.now()
+        val snapshot = mockDocSnapshot(mapOf("ip" to "ip-address", "ttl" to recentTimestamp))
+
+        every { collection.document("tr1:100") } returns mockk {
+            every { get() } returns ApiFutures.immediateFuture(snapshot)
+        }
+
         val status = store.getStatus("tr1", "100")
         assertEquals(true, status!!.isOnline)
         assertEquals("ip-address", status.ipAddress)
@@ -86,43 +119,74 @@ internal class ConnectedCarStoreTest {
 
     @Test
     fun testGettingStatusOffline() = runBlocking {
-        val store = getFirestore()
-        val storeProxy = spyk(store)
-        every { storeProxy.getTimeNow() } returns Timestamp.of(GregorianCalendar(2023, 5, 1).time)
-        storeProxy.storeConnectedCarDetails(RequestDetails("tr1", "101", "mykey", "outdated-ip-address"))
+        val oldTimestamp = Timestamp.of(GregorianCalendar(2023, 5, 1).time)
+        val snapshot = mockDocSnapshot(mapOf("ip" to "outdated-ip", "ttl" to oldTimestamp))
+
+        every { collection.document("tr1:101") } returns mockk {
+            every { get() } returns ApiFutures.immediateFuture(snapshot)
+        }
+
         val status = store.getStatus("tr1", "101")
         assertEquals(false, status!!.isOnline)
-        assertEquals("outdated-ip-address", status.ipAddress)
+        assertEquals("outdated-ip", status.ipAddress)
     }
 
     @Test
-    fun testNoDupeEntriesOnWrite() = runBlocking {
-        val store = getFirestore()
-        // should be unique between track + car combo
-        store.storeConnectedCarDetails(RequestDetails("tr2", "99", "mykey1", "ip1"))
-        store.storeConnectedCarDetails(RequestDetails("tr2", "99", "mykey2", "ip2"))
-        assertNull(store.findTrack("99", "ip1", null))
-        assertEquals("tr2", store.findTrack("99", "ip2", null))
-    }
-
-    private fun getFirestore(): ConnectedCarStore {
-        if (store == null) {
-            val firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
-                .setProjectId("test")
-                .setEmulatorHost(emulator.emulatorEndpoint)
-                .setCredentials(FirestoreOptions.EmulatorCredentials())
-                .setCredentialsProvider(FixedCredentialsProvider.create(FirestoreOptions.EmulatorCredentials()))
-                .build()
-            store = ConnectedCarStore(firestoreOptions.service)
+    fun testGettingStatusNotFound() = runBlocking {
+        val snapshot = mockk<DocumentSnapshot> {
+            every { contains("ttl") } returns false
+            every { contains("ip") } returns false
         }
-        return store!!
+
+        every { collection.document("tr1:999") } returns mockk {
+            every { get() } returns ApiFutures.immediateFuture(snapshot)
+        }
+
+        assertNull(store.getStatus("tr1", "999"))
     }
 
-}
+    @Test
+    fun testStoreConnectedCarDetails() {
+        val docRef = mockk<DocumentReference>()
+        every { collection.document("tr1:100") } returns docRef
+        every { docRef.set(any<Map<String, Any>>()) } returns ApiFutures.immediateFuture(mockk<WriteResult>())
 
-private fun ConnectedCarStore.wipe() {
-    val future = db.collection(ONLINE_CARS).get()
-    future.get().documents.stream().forEach {
-        it.reference.delete()
+        store.storeConnectedCarDetails(RequestDetails("tr1", "100", "mykey", "device1", "1.2.3.4"))
+
+        verify {
+            docRef.set(match<Map<String, Any>> {
+                it["key"] == "mykey" && it["ip"] == "1.2.3.4" && it["dId"] == "device1"
+            })
+        }
+    }
+
+    private fun mockDocSnapshot(fields: Map<String, Any>): DocumentSnapshot {
+        return mockk {
+            every { contains("ttl") } returns fields.containsKey("ttl")
+            every { contains("ip") } returns fields.containsKey("ip")
+            every { getString("ip") } returns fields["ip"] as? String
+            every { getTimestamp("ttl") } returns fields["ttl"] as? Timestamp
+        }
+    }
+
+    private fun mockDocRef(id: String, fields: Map<String, Any>): DocumentReference {
+        val snapshot = mockDocSnapshot(fields)
+        every { snapshot.id } returns id
+        return mockk {
+            every { get() } returns ApiFutures.immediateFuture(snapshot)
+        }
+    }
+
+    private fun mockQueryDocSnapshot(id: String, fields: Map<String, Any>): QueryDocumentSnapshot {
+        val snapshot = mockk<QueryDocumentSnapshot>()
+        every { snapshot.id } returns id
+        every { snapshot.get(any<String>()) } answers { fields[firstArg<String>()] }
+        return snapshot
+    }
+
+    private fun mockQuerySnapshot(docs: List<QueryDocumentSnapshot>): QuerySnapshot {
+        return mockk {
+            every { documents } returns docs
+        }
     }
 }

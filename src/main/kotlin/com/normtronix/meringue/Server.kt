@@ -22,6 +22,12 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     @Autowired
     lateinit var carStore : ConnectedCarStore
 
+    @Autowired
+    lateinit var deviceStore : DeviceDataStore
+
+    @Autowired
+    lateinit var emailService : EmailAddressService
+
     // map of trackCode -> carNumber -> ChannelAndKey<LemonPi.ToPitMessage>
     val toPitIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToPitMessage>>> = mutableMapOf()
     // map of trackCode -> carNumber -> ChannelAndKey<LemonPi.ToCarMessage>
@@ -43,20 +49,20 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         val requestDetails = requestor.get()
         val currentTrack = requestDetails.trackCode
         val currentCar = requestDetails.carNum
-        val currentKey = requestDetails.key
+        val currentKey = requestDetails.teamCode
         // todo : make sure that the car is the one sending from itself
         if (!request.hasPing()) {
             log.info("car ${currentTrack}/${currentCar} sending message")
         }
         getSendChannel(currentTrack, currentCar, currentKey, toPitIndex).emit(request)
-        introspectToPitMessage(currentTrack, currentCar, request)
+        introspectToPitMessage(requestDetails, request)
         return Empty.getDefaultInstance()
     }
 
     override suspend fun sendMessageFromPits(request: LemonPi.ToCarMessage): Empty {
         val requestDetails = requestor.get()
         val currentTrack = requestDetails.trackCode
-        val currentKey = requestDetails.key
+        val currentKey = requestDetails.teamCode
         val targetCar = extractTargetCar(request)
         log.info("pit ${currentTrack}/${requestDetails.carNum} sending message to $targetCar")
         getSendChannel(currentTrack, targetCar, currentKey, toCarIndex).emit(request)
@@ -67,9 +73,10 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     override fun receivePitMessages(request: LemonPi.CarNumber): Flow<LemonPi.ToCarMessage> {
         val requestDetails = requestor.get()
         val currentTrack = requestDetails.trackCode
-        val currentKey = requestDetails.key
+        val currentKey = requestDetails.teamCode
         log.info("receiving messages for car ${request.carNumber} @ $currentTrack")
         carStore.storeConnectedCarDetails(requestDetails)
+        deviceStore.storeDeviceDetails(requestDetails)
         CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
         return getSendChannel(currentTrack, request.carNumber, currentKey, toCarIndex).asSharedFlow()
     }
@@ -77,7 +84,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     override fun receiveCarMessages(request: LemonPi.CarNumber): Flow<LemonPi.ToPitMessage> {
         val requestDetails = requestor.get()
         val currentTrack = requestDetails.trackCode
-        val currentKey = requestDetails.key
+        val currentKey = requestDetails.teamCode
         log.info("receiving car messages for ${request.carNumber} @ $currentTrack")
         // todo : this needs more thought
         // CarConnectedEvent(currentTrack, request.carNumber).emitAsync()
@@ -126,6 +133,27 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         return false
     }
 
+    internal suspend fun setDriverName(trackCode: String, carNumber: String, driverName: String): Boolean {
+        val driverNameMsg = LemonPi.ToCarMessage.newBuilder().driverNameBuilder
+            .setCarNumber(carNumber)
+            .setSender("meringue")
+            .setDriverName(driverName)
+            .setSeqNum(seqNo++)
+            .setTimestamp(Instant.now().epochSecond.toInt())
+            .build()
+        val wrapper = LemonPi.ToCarMessage.newBuilder()
+            .setDriverName(driverNameMsg)
+            .build()
+
+        log.info("request to set driver name on $carNumber at $trackCode")
+        toCarIndex[trackCode]?.get(carNumber)?.radioKey?.apply {
+            getSendChannel(trackCode, carNumber, this, toCarIndex).emit(wrapper)
+            log.info("sent driver name to car $carNumber at $trackCode")
+            return true
+        }
+        return false
+    }
+
     internal suspend fun setTargetLapTime(trackCode: String, carNumber: String, targetTimeSeconds: Int): Boolean {
         val targetTime = LemonPi.ToCarMessage.newBuilder().setTargetBuilder
             .setCarNumber(carNumber)
@@ -147,9 +175,10 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         return false
     }
 
-    private suspend fun introspectToPitMessage(trackCode: String,
-                                               carNumber: String,
+    private suspend fun introspectToPitMessage(requestDetails: RequestDetails,
                                                request: LemonPi.ToPitMessage) {
+        val trackCode = requestDetails.trackCode
+        val carNumber = requestDetails.carNum
         if (request.hasTelemetry()) {
             CarTelemetryEvent(
                 trackCode,
@@ -157,7 +186,8 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                 request.telemetry.lapCount,
                 request.telemetry.lastLapTime,
                 request.telemetry.coolantTemp,
-                request.telemetry.fuelRemainingPercent
+                request.telemetry.fuelRemainingPercent,
+                request.telemetry.extraSensorsMap
             ).emit()
         } else if (request.hasPing()) {
             GpsPositionEvent(
@@ -175,7 +205,45 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                 trackCode,
                 carNumber
             ).emit()
+        } else if (request.hasEmailAddress()) {
+            handleEditTeamEmailAddress(requestDetails, request.emailAddress)
         }
+    }
+
+    internal suspend fun handleEditTeamEmailAddress(requestDetails: RequestDetails,
+                                                   editRequest: LemonPi.EditTeamEmailAddress) {
+        val email = editRequest.emailAddress.lowercase().trim()
+        val deviceId = requestDetails.deviceId
+
+        if (deviceId.isBlank()) {
+            log.warn("cannot manage email addresses without a device ID")
+            return
+        }
+
+        if (editRequest.add) {
+            if (emailService.isDeliverable(email)) {
+                deviceStore.addEmailAddress(deviceId, email)
+            } else {
+                log.info("email {} not deliverable, not adding to device {}", email, deviceId)
+            }
+        } else {
+            deviceStore.removeEmailAddress(deviceId, email)
+        }
+
+        val allAddresses = deviceStore.getEmailAddresses(deviceId)
+        val response = LemonPi.ToCarMessage.newBuilder()
+            .setEmailAddresses(
+                LemonPi.TeamEmailAddresses.newBuilder()
+                    .setSender("meringue")
+                    .setSeqNum(seqNo++)
+                    .setTimestamp(Instant.now().epochSecond.toInt())
+                    .addAllEmailAddress(allAddresses)
+                    .build()
+            )
+            .build()
+
+        toCarIndex[requestDetails.trackCode]?.get(requestDetails.carNum)?.channel?.emit(response)
+        log.info("sent team email addresses to car {} ({} addresses)", requestDetails.carNum, allAddresses.size)
     }
 
     private suspend fun introspectToCarMessage(trackCode: String,

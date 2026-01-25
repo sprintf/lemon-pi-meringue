@@ -15,6 +15,8 @@ This is a Kotlin Spring Boot application that serves as the server component for
 - **Security**: gRPC interceptors for authentication and context management
 - **External Integrations**: Slack notifications, Firebase/Firestore for data persistence
 
+The code is Kotlin native, runs in coroutines, and favors non-blocking IO. 
+
 ## Development Commands
 
 ### Local Development

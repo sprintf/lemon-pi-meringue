@@ -29,6 +29,7 @@ class ConnectedCarStore() {
     internal val ONLINE_CARS = "onlineCars"
     private val IP = "ip"
     private val KEY = "key"
+    private val DEVICE_ID = "dId"
     private val TTL = "ttl"
     private val TEN_MINUTES = 10 * 60
 
@@ -45,8 +46,9 @@ class ConnectedCarStore() {
                 db.collection(ONLINE_CARS)
                     .document("${request.trackCode}:${request.carNum}")
                     .set(hashMapOf(
-                        KEY to request.key,
+                        KEY to request.teamCode,
                         IP to request.remoteIpAddr,
+                        DEVICE_ID to request.deviceId,
                         TTL to getTimeNow()
                     ).toMap())
                     .get(500, TimeUnit.MILLISECONDS)

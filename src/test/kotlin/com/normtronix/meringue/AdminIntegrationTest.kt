@@ -7,7 +7,6 @@ import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.testing.GrpcCleanupRule
 import kotlinx.coroutines.*
-import net.devh.boot.grpc.server.security.interceptors.ExceptionTranslatingServerInterceptor
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
@@ -50,9 +49,6 @@ internal class AdminIntegrationTest {
 
     @MockBean
     lateinit var emailService: EmailAddressService
-
-    @MockBean
-    lateinit var exceptionTranslatingServerInterceptor: ExceptionTranslatingServerInterceptor
 
     @Autowired
     lateinit var adminService: AdminService

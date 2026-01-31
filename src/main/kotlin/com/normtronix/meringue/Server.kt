@@ -9,7 +9,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import net.devh.boot.grpc.server.security.interceptors.ExceptionTranslatingServerInterceptor
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -20,9 +19,6 @@ import java.time.Instant
 @ExperimentalCoroutinesApi
 @GrpcService(interceptors = [ContextInterceptor::class, ServerSecurityInterceptor::class])
 class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler {
-
-    @Autowired
-    private lateinit var exceptionTranslatingServerInterceptor: ExceptionTranslatingServerInterceptor
 
     @Autowired
     private lateinit var connectedCarStore: ConnectedCarStore

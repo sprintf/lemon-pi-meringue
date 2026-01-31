@@ -14,7 +14,10 @@ import org.springframework.stereotype.Component
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
-data class PitcrewContext(val deviceIds: List<String>, val teamCode: String)
+data class PitcrewContext(
+    val deviceIds: List<String>,
+    val teamCode: String,
+    val emailAddress: String,)
 
 @Component
 class PitcrewContextInterceptor : CoroutineContextServerInterceptor() {
@@ -35,7 +38,8 @@ class PitcrewContextInterceptor : CoroutineContextServerInterceptor() {
                 val decoded = verifier.verify(bearerToken)
                 val deviceIds = decoded.getClaim("deviceIds").asList(String::class.java)
                 val teamCode = decoded.getClaim("teamCode").asString()
-                pitcrewContext.set(PitcrewContext(deviceIds, teamCode))
+                val emailAddress = decoded.getClaim("emailAddress").asString()
+                pitcrewContext.set(PitcrewContext(deviceIds, teamCode, emailAddress))
                 log.info("bearer token verification successful")
                 return pitcrewContext.asContextElement()
             } catch (e: Exception) {

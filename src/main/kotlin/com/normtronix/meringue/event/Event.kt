@@ -253,3 +253,14 @@ class NewEmailAddressAddedEvent(
         return "NewEmailAddressAddedEvent : email=$email car=$carNumber"
     }
 }
+
+class SendEmailAddressesToCarEvent(
+    val trackCode: String,
+    val carNumber: String,
+    val emailAddresses: List<String>
+): Event() {
+
+    override fun toString(): String {
+        return "SendEmailAddressesToCarEvent : car=$carNumber ($trackCode) emails=${emailAddresses.size}"
+    }
+}

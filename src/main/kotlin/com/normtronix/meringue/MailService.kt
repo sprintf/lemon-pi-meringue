@@ -1,5 +1,6 @@
 package com.normtronix.meringue
 
+import com.google.gson.JsonObject
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
@@ -37,11 +38,16 @@ class MailService() {
         return try {
             val response = httpClient.post("https://api.mailgun.net/v3/$mailgunDomain/messages") {
                 header(HttpHeaders.Authorization, "Basic ${Base64.getEncoder().encodeToString("api:$apiKey".toByteArray())}")
+                val mailgunVars = JsonObject().apply {
+                    addProperty("email", java.net.URLEncoder.encode(toEmail, "UTF-8"))
+                    addProperty("domain", mailgunDomain)
+                    addProperty("carNumber", carNumber)
+                }
                 setBody(FormDataContent(Parameters.build {
-                    append("from", "Lemons Racer <noreply@$mailgunDomain>")
+                    append("from", "Lemons Racer <info@$mailgunDomain>")
                     append("to", toEmail)
                     append("template", "welcome-pit")
-                    append("h:X-Mailgun-Variables", """{"email":"$toEmail","domain":"$mailgunDomain","carNumber":"$carNumber"}""")
+                    append("h:X-Mailgun-Variables", mailgunVars.toString())
                 }))
             }
 

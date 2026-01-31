@@ -96,4 +96,10 @@ open class RequestDetails(
     val teamCode: String,
     val deviceId: String,
     val remoteIpAddr: String
-)
+) {
+    constructor(trackCode: String, carNum: String, teamCode: String) : this(trackCode, carNum, teamCode, deviceId = ANY_DEVICE, remoteIpAddr = "")
+
+    companion object {
+        val ANY_DEVICE = ""
+    }
+}

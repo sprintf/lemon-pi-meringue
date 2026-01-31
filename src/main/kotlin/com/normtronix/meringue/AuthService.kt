@@ -6,8 +6,7 @@ import java.util.*
 @Service
 class AuthService {
 
-    // todo : this has to move into firestore or this will not survive server restarts and horizontol scale
-    // might it be ok to cache for 1 minute ... yes sure
+    // this is only used by the admin login from Dash. Which may not be needed anymore
 
     private val tokenToUserMap: MutableMap<String, String> = mutableMapOf()
 

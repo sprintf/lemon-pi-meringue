@@ -67,7 +67,7 @@ class RaceSchedule : InitializingBean, EventHandler {
         Date.from(firstDay.toInstant().minus(1, ChronoUnit.DAYS))
 
     private fun endOfDay(raceDay: Date) : Date =
-        Date.from(raceDay.toInstant().plus(20, ChronoUnit.HOURS))
+        Date.from(raceDay.toInstant().plus(24, ChronoUnit.HOURS))
 
     private fun loadSchedule(): RaceSeries {
         log.info("loading race schedule from race-schedule.json")

@@ -71,7 +71,7 @@ internal class ServerTest {
             val carNumber = LemonPi.CarNumber.newBuilder().setCarNumber("12").build()
 
             val carCreds = CallCredentialsHelper.basicAuth("thil/12", "foo")
-            val pitCreds = CallCredentialsHelper.basicAuth("thil/12-pit", "foo")
+            val pitCreds = CallCredentialsHelper.basicAuth("thil/12", "foo")
             val observer = SO<LemonPi.ToPitMessage>()
 
             coroutineScope {

@@ -16,8 +16,8 @@ internal class ServerChannelTest {
             val s = Server()
             s.carStore = mockk()
             s.deviceStore = mockk()
-            every { s.carStore.storeConnectedCarDetails(any()) } returns Unit
-            every { s.deviceStore.storeDeviceDetails(any()) } returns Unit
+            every { s.carStore.storeConnectedCarDetails(any()) } returns null
+            every { s.deviceStore.storeDeviceDetails(any(), any()) } returns Unit
 
             val collector = PitMessageCollector(s, "99")
             coroutineScope {
@@ -34,7 +34,7 @@ internal class ServerChannelTest {
                 val j2 = launch(requestor.asContextElement(
                     value=RequestDetails(
                         "thil",
-                        "99-pit",
+                        "99",
                         "foo",
                         "0f1a7e93",
                         ""))) {
@@ -69,15 +69,15 @@ internal class ServerChannelTest {
             val s = Server()
             s.carStore = mockk()
             s.deviceStore = mockk()
-            every { s.carStore.storeConnectedCarDetails(any()) } returns Unit
-            every { s.deviceStore.storeDeviceDetails(any()) } returns Unit
+            every { s.carStore.storeConnectedCarDetails(any()) } returns null
+            every { s.deviceStore.storeDeviceDetails(any(), any()) } returns Unit
 
             val collector = CarMessageCollector(s, "99")
             coroutineScope {
                 val j1 = launch(requestor.asContextElement(
                     value = RequestDetails(
                         "thil",
-                        "99-pit",
+                        "99",
                         "foo",
                         "0f1a7e93",
                         ""))) {
@@ -96,7 +96,7 @@ internal class ServerChannelTest {
                 val j3 = launch(requestor.asContextElement(
                     value = RequestDetails(
                         "thil",
-                        "99-pit",
+                        "99",
                         "foo",
                         "0f1a7e93",
                         ""))) {

@@ -57,7 +57,7 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
     override fun streamCarData(request: CarData.CarDataRequest): Flow<CarData.CarDataResponse> {
         val key = buildKey(request.trackCode, request.carNumber)
         val baseFlow = channelMap.getOrPut(key) { MutableSharedFlow() }
-        // start tracking this car
+        // this attempts to connect up race data, if there's a race going on
         CarConnectedEvent(request.trackCode, request.carNumber).emitAsync()
         return baseFlow.asSharedFlow()
     }

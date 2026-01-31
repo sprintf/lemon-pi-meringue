@@ -92,12 +92,12 @@ internal class PitcrewCommunicationsServiceTest {
 
     @Test
     fun testGetCarStatus() = runBlocking {
-        pitcrewContext.set(PitcrewContext(listOf("device1"), "123"))
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
 
         coEvery { deviceStore.getDeviceInfo("device1") } returns
-                DeviceDataStore.DeviceInfo("thil", "181", "123")
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
         coEvery { connectedCarStore.getStatus("thil", "181") } returns
-                ConnectedCarStore.CarConnectedStatus(true, "1.2.3.4")
+                ConnectedCarStore.CarConnectedStatus(true, "1.2.3.4", "device1")
 
         val response = service.getCarStatus(Empty.getDefaultInstance())
 
@@ -111,9 +111,9 @@ internal class PitcrewCommunicationsServiceTest {
 
     @Test
     fun testSendDriverMessage() = runBlocking {
-        pitcrewContext.set(PitcrewContext(listOf("device1"), "123"))
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
         coEvery { deviceStore.getDeviceInfo("device1") } returns
-                DeviceDataStore.DeviceInfo("thil", "181", "123")
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
         coEvery { server.sendDriverMessage("thil", "181", "hello driver") } returns true
 
         val request = Pitcrew.PitDriverMessageRequest.newBuilder()
@@ -128,9 +128,9 @@ internal class PitcrewCommunicationsServiceTest {
 
     @Test
     fun testSetDriverName() = runBlocking {
-        pitcrewContext.set(PitcrewContext(listOf("device1"), "123"))
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
         coEvery { deviceStore.getDeviceInfo("device1") } returns
-                DeviceDataStore.DeviceInfo("thil", "181", "123")
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
         coEvery { server.setDriverName("thil", "181", "Bob") } returns true
 
         val request = Pitcrew.PitSetDriverNameRequest.newBuilder()
@@ -145,9 +145,9 @@ internal class PitcrewCommunicationsServiceTest {
 
     @Test
     fun testSetTargetLapTime() = runBlocking {
-        pitcrewContext.set(PitcrewContext(listOf("device1"), "123"))
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
         coEvery { deviceStore.getDeviceInfo("device1") } returns
-                DeviceDataStore.DeviceInfo("thil", "181", "123")
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
         coEvery { server.setTargetLapTime("thil", "181", 95) } returns true
 
         val request = Pitcrew.PitSetTargetLapTimeRequest.newBuilder()
@@ -162,9 +162,9 @@ internal class PitcrewCommunicationsServiceTest {
 
     @Test
     fun testResetFastLapTime() = runBlocking {
-        pitcrewContext.set(PitcrewContext(listOf("device1"), "123"))
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
         coEvery { deviceStore.getDeviceInfo("device1") } returns
-                DeviceDataStore.DeviceInfo("thil", "181", "123")
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
         coEvery { server.resetFastLapTime("thil", "181") } returns true
 
         val request = Pitcrew.PitResetFastLapTimeRequest.newBuilder()
@@ -178,9 +178,9 @@ internal class PitcrewCommunicationsServiceTest {
 
     @Test
     fun testAccessDeniedForUnownedCar() = runBlocking {
-        pitcrewContext.set(PitcrewContext(listOf("device1"), "123"))
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
         coEvery { deviceStore.getDeviceInfo("device1") } returns
-                DeviceDataStore.DeviceInfo("thil", "181", "123")
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
 
         val request = Pitcrew.PitDriverMessageRequest.newBuilder()
             .setTrackCode("thil")
@@ -195,10 +195,10 @@ internal class PitcrewCommunicationsServiceTest {
 
     @Test
     fun testGetCarStatusWithOfflineCar() = runBlocking {
-        pitcrewContext.set(PitcrewContext(listOf("device1"), "123"))
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
 
         coEvery { deviceStore.getDeviceInfo("device1") } returns
-                DeviceDataStore.DeviceInfo("thil", "181", "123")
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
         coEvery { connectedCarStore.getStatus("thil", "181") } returns null
 
         val response = service.getCarStatus(Empty.getDefaultInstance())

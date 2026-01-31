@@ -148,7 +148,11 @@ internal class ConnectedCarStoreTest {
     @Test
     fun testStoreConnectedCarDetails() {
         val docRef = mockk<DocumentReference>()
+        val existingSnapshot = mockk<DocumentSnapshot> {
+            every { exists() } returns false
+        }
         every { collection.document("tr1:100") } returns docRef
+        every { docRef.get() } returns ApiFutures.immediateFuture(existingSnapshot)
         every { docRef.set(any<Map<String, Any>>()) } returns ApiFutures.immediateFuture(mockk<WriteResult>())
 
         store.storeConnectedCarDetails(RequestDetails("tr1", "100", "mykey", "device1", "1.2.3.4"))
@@ -165,6 +169,7 @@ internal class ConnectedCarStoreTest {
             every { contains("ttl") } returns fields.containsKey("ttl")
             every { contains("ip") } returns fields.containsKey("ip")
             every { getString("ip") } returns fields["ip"] as? String
+            every { getString("dId") } returns fields["dId"] as? String
             every { getTimestamp("ttl") } returns fields["ttl"] as? Timestamp
         }
     }

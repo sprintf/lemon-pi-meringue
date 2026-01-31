@@ -50,6 +50,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         val token = JWT.create()
             .withClaim("deviceIds", deviceIds)
             .withClaim("teamCode", teamCode)
+            .withClaim("email", email)
             .withExpiresAt(java.util.Date(System.currentTimeMillis() + 90L * 24 * 60 * 60 * 1000))
             .sign(Algorithm.HMAC256(jwtSecret))
 
@@ -144,7 +145,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
             ?: throw BadCredentialsException("missing context")
         for (deviceId in ctx.deviceIds) {
             val info = deviceStore.getDeviceInfo(deviceId) ?: continue
-            if (info.trackCode == trackCode && info.carNumber == carNumber) {
+            if (info.trackCode == trackCode && info.carNumber == carNumber && info.emailAddresses.contains(ctx.emailAddress)) {
                 return
             }
         }

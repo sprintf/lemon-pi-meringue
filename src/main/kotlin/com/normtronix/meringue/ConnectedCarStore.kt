@@ -26,13 +26,6 @@ import java.util.concurrent.TimeUnit
 @Component
 class ConnectedCarStore() {
 
-    internal val ONLINE_CARS = "onlineCars"
-    private val IP = "ip"
-    private val KEY = "key"
-    private val DEVICE_ID = "dId"
-    private val TTL = "ttl"
-    private val TEN_MINUTES = 10 * 60
-
     constructor(testDb: Firestore) : this() {
         this.db = testDb
     }
@@ -40,36 +33,56 @@ class ConnectedCarStore() {
     @Autowired
     lateinit var db : Firestore
 
-    fun storeConnectedCarDetails(request: RequestDetails?) {
-        request?.apply {
-            try {
-                db.collection(ONLINE_CARS)
-                    .document("${request.trackCode}:${request.carNum}")
-                    .set(hashMapOf(
-                        KEY to request.teamCode,
-                        IP to request.remoteIpAddr,
-                        DEVICE_ID to request.deviceId,
-                        TTL to getTimeNow()
-                    ).toMap())
-                    .get(500, TimeUnit.MILLISECONDS)
-                log.info("stored car ${request.carNum} details in connected db ip=${request.remoteIpAddr}")
-            } catch (e: Exception) {
-                log.error("failed to write to firestore", e)
+    /**
+     * Store connected car details and detect reinstall scenario.
+     * @return the previous deviceId if this appears to be a reinstall (same IP, different deviceId), null otherwise
+     */
+    fun storeConnectedCarDetails(request: RequestDetails?): String? {
+        if (request == null) return null
+
+        var previousDeviceId: String? = null
+        try {
+            val docRef = db.collection(ONLINE_CARS).document("${request.trackCode}:${request.carNum}")
+            val existing = docRef.get().get(500, TimeUnit.MILLISECONDS)
+
+            if (existing.exists()) {
+                val oldDeviceId = existing.getString(DEVICE_ID)
+                val oldIp = existing.getString(IP)
+                // Reinstall detected: same IP but different deviceId
+                if (oldDeviceId != null && oldDeviceId != request.deviceId && oldIp == request.remoteIpAddr) {
+                    previousDeviceId = oldDeviceId
+                    log.info("reinstall detected for car ${request.carNum}: old device=$oldDeviceId, new device=${request.deviceId}")
+                }
             }
+
+            docRef.set(hashMapOf(
+                KEY to request.teamCode,
+                IP to request.remoteIpAddr,
+                DEVICE_ID to request.deviceId,
+                TTL to getTimeNow()
+            ).toMap()).get(500, TimeUnit.MILLISECONDS)
+            log.info("stored car ${request.carNum} details in connected db ip=${request.remoteIpAddr}")
+
+        } catch (e: Exception) {
+            log.error("failed to write to firestore", e)
         }
+        return previousDeviceId
     }
 
     fun getTimeNow() = Timestamp.now()
 
     data class CarConnectedStatus(
         val isOnline: Boolean,
-        val ipAddress: String?
+        val ipAddress: String?,
+        val deviceId: String?
     )
 
     suspend fun getStatus(trackCode: String, carNumber: String): CarConnectedStatus? = withContext(Dispatchers.IO) {
         val doc = db.collection(ONLINE_CARS).document("$trackCode:$carNumber").get().get()
         when (doc.contains(TTL) and doc.contains(IP)) {
-            true -> CarConnectedStatus(isRecentTTL(doc), doc.getString(IP))
+            true -> CarConnectedStatus(isRecentTTL(doc),
+                doc.getString(IP),
+                doc.getString(DEVICE_ID))
             else -> null
         }
     }
@@ -107,5 +120,12 @@ class ConnectedCarStore() {
 
     companion object {
         val log: Logger = LoggerFactory.getLogger(ConnectedCarStore::class.java)
+
+        internal const val ONLINE_CARS = "onlineCars"
+        private const val IP = "ip"
+        private const val KEY = "key"
+        private const val DEVICE_ID = "dId"
+        private const val TTL = "ttl"
+        private const val TEN_MINUTES = 10 * 60
     }
 }

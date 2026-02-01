@@ -1,7 +1,5 @@
 package com.normtronix.meringue
 
-import com.auth0.jwt.JWT
-import com.auth0.jwt.algorithms.Algorithm
 import io.grpc.Metadata
 import io.grpc.ServerCall
 import io.grpc.kotlin.CoroutineContextServerInterceptor
@@ -9,7 +7,6 @@ import kotlinx.coroutines.asContextElement
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.stereotype.Component
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -30,24 +27,21 @@ class PitcrewContextInterceptor : CoroutineContextServerInterceptor() {
     override fun coroutineContext(call: ServerCall<*, *>, headers: Metadata): CoroutineContext {
         pitcrewContext.remove()
         if (!unauthenticatedMethods.contains(call.methodDescriptor?.bareMethodName)) {
-            log.info("bearer token = {} ", getBearerToken(headers))
             val bearerToken = getBearerToken(headers)
-                ?: throw BadCredentialsException("missing auth token")
+            if (bearerToken == null) {
+                log.warn("missing bearer token for method {}", call.methodDescriptor?.bareMethodName)
+                return EmptyCoroutineContext
+            }
             try {
-                val verifier = JWT.require(Algorithm.HMAC256(jwtSecret)).build()
-                val decoded = verifier.verify(bearerToken)
-                val deviceIds = decoded.getClaim("deviceIds").asList(String::class.java)
-                val teamCode = decoded.getClaim("teamCode").asString()
-                val emailAddress = decoded.getClaim("emailAddress").asString()
-                pitcrewContext.set(PitcrewContext(deviceIds, teamCode, emailAddress))
+                val claims = JwtHelper.decodeToken(bearerToken, jwtSecret)
+                pitcrewContext.set(PitcrewContext(claims.deviceIds, claims.teamCode, claims.email))
                 log.info("bearer token verification successful")
                 return pitcrewContext.asContextElement()
             } catch (e: Exception) {
-                log.warn("JWT verification failed", e)
-                throw BadCredentialsException("invalid auth token")
+                log.warn("JWT verification failed: {}", e.message)
+                return EmptyCoroutineContext
             }
         }
-        pitcrewContext.remove()
         return EmptyCoroutineContext
     }
 

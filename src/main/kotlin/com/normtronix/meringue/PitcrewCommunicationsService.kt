@@ -1,10 +1,9 @@
 package com.normtronix.meringue
 
-import com.auth0.jwt.JWT
-import com.auth0.jwt.algorithms.Algorithm
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Empty
 import com.normtronix.meringue.PitcrewContextInterceptor.Companion.pitcrewContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import net.devh.boot.grpc.server.service.GrpcService
@@ -15,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.BadCredentialsException
 
+@ExperimentalCoroutinesApi
 @GrpcService(interceptors = [PitcrewContextInterceptor::class, PitcrewSecurityInterceptor::class])
 class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutineImplBase() {
 
@@ -47,12 +47,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         }
         log.info("logging in and matched ${deviceIds.size} devices")
 
-        val token = JWT.create()
-            .withClaim("deviceIds", deviceIds)
-            .withClaim("teamCode", teamCode)
-            .withClaim("email", email)
-            .withExpiresAt(java.util.Date(System.currentTimeMillis() + 90L * 24 * 60 * 60 * 1000))
-            .sign(Algorithm.HMAC256(jwtSecret))
+        val token = JwtHelper.createToken(deviceIds, teamCode, email, jwtSecret)
 
         log.info("logged in")
 

@@ -4,14 +4,14 @@ import io.grpc.Metadata
 import io.grpc.ServerCall
 import io.grpc.ServerCallHandler
 import io.grpc.ServerInterceptor
+import io.grpc.Status
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.stereotype.Component
 
 @Component
-class AdminSecurityInterceptor: ServerInterceptor {
+class AdminSecurityInterceptor : ServerInterceptor {
 
     private val unauthenticatedMethods = setOf("auth", "ping")
 
@@ -19,19 +19,16 @@ class AdminSecurityInterceptor: ServerInterceptor {
     lateinit var authService: AuthService
 
     override fun <ReqT : Any?, RespT : Any?> interceptCall(
-        call: ServerCall<ReqT, RespT>?,
-        headers: Metadata?,
-        next: ServerCallHandler<ReqT, RespT>?
+        call: ServerCall<ReqT, RespT>,
+        headers: Metadata,
+        next: ServerCallHandler<ReqT, RespT>
     ): ServerCall.Listener<ReqT> {
-        if (!unauthenticatedMethods.contains(call?.methodDescriptor?.bareMethodName)) {
-            // make sure there is a valid token on here
+        if (!unauthenticatedMethods.contains(call.methodDescriptor?.bareMethodName)) {
             val bearerToken = getBearerToken(headers)
             if (!authService.isTokenValid(bearerToken)) {
-                throw BadCredentialsException("invalid or missing authtoken")
+                call.close(Status.UNAUTHENTICATED.withDescription("invalid or missing auth token"), Metadata())
+                return object : ServerCall.Listener<ReqT>() {}
             }
-        }
-        if (next == null) {
-            throw Exception("badly wired interceptors")
         }
         return next.startCall(call, headers)
     }

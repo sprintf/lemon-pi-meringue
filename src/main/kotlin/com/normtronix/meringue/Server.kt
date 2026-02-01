@@ -21,6 +21,9 @@ import java.time.Instant
 class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler {
 
     @Autowired
+    lateinit var mailService: MailService
+
+    @Autowired
     private lateinit var connectedCarStore: ConnectedCarStore
 
     @Autowired
@@ -248,7 +251,10 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
 
         if (editRequest.add) {
             if (emailService.isDeliverable(email)) {
-                deviceStore.addEmailAddress(deviceId, email)
+                // if this is a new email address for this account
+                if (deviceStore.addEmailAddress(deviceId, email)) {
+                    mailService.sendWelcomeEmail(email, requestDetails.carNum)
+                }
             } else {
                 log.info("email {} not deliverable, not adding to device {}", email, deviceId)
             }

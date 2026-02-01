@@ -2,7 +2,6 @@ package com.normtronix.meringue
 
 import com.google.protobuf.Empty
 import com.normtronix.meringue.racedata.DS1RaceLister
-import com.normtronix.meringue.racedata.DS2RaceLister
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.testing.GrpcCleanupRule
@@ -33,9 +32,6 @@ internal class AdminIntegrationTest {
     lateinit var raceLister1: DS1RaceLister
 
     @MockBean
-    lateinit var raceLister2: DS2RaceLister
-
-    @MockBean
     lateinit var connectedCars: ConnectedCarStore
 
     @MockBean
@@ -49,6 +45,9 @@ internal class AdminIntegrationTest {
 
     @MockBean
     lateinit var emailService: EmailAddressService
+
+    @MockBean
+    lateinit var mailService: MailService
 
     @Autowired
     lateinit var adminService: AdminService

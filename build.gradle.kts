@@ -57,6 +57,9 @@ dependencies {
 	implementation("com.slack.api:slack-api-client:1.27.1")
 	implementation("com.auth0:java-jwt:4.4.0")
 	implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+	implementation("org.jsoup:jsoup:1.22.1")
+	implementation("me.xdrop:fuzzywuzzy:1.4.0")
+
 
 	implementation("com.pusher:pusher-java-client:2.4.2")
 

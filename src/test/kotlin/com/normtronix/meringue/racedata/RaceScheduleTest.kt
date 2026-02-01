@@ -47,6 +47,14 @@ internal class RaceScheduleTest {
     }
 
     @Test
+    fun scoreStringMatch2() {
+        val r1 = RaceDataIndexItem("555", "Barber Motorsports Park", "Shine Country Classic")
+        val r2 = RaceDataIndexItem("666", "MSR Houston", "Chilli Pepper Regional - SCCA Houston")
+        val lemonsRace = "Shine Country Classic at Barber Motorsports Park"
+        assertTrue(RaceSchedule.score(lemonsRace, r1) > RaceSchedule.score(lemonsRace, r2))
+    }
+
+    @Test
     fun testGettingConnectionEvent() {
         runBlocking {
             val rs = RaceSchedule()

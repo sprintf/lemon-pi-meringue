@@ -1,5 +1,6 @@
 package com.normtronix.meringue.racedata
 
+import org.jsoup.Jsoup
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
@@ -8,7 +9,7 @@ import java.net.URL
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
-class RaceDataIndexItem(val raceId: String, val trackName: String, var eventName: String? = null)
+class RaceDataIndexItem(val raceId: String, val trackName: String, val eventName: String? = null)
 
 @Component
 class DS1RaceLister {
@@ -26,35 +27,24 @@ class DS1RaceLister {
     @Scheduled(fixedDelayString = "5", timeUnit = TimeUnit.MINUTES)
     private fun loadData() {
         log.info("loading race index data")
-        val linkRE = Regex("@ <a href=\"(.*?)\">(.*?)</a")
+
+
         val raceListHtml = URL("https://www.race-monitor.com/Live").readText()
         val tmpEventList:MutableMap<String, RaceDataIndexItem> = mutableMapOf()
 
-        val matchResult = linkRE.findAll(raceListHtml)
-        for (result in matchResult) {
-            // println("got matchResult of ${result}")
-            val link = result.groupValues[1]
-            val raceId = link.split("/").let {
-                it[it.size - 1].toInt().toString()
-            }
-            val trackName = result.groupValues[2]
-            tmpEventList[raceId] = RaceDataIndexItem(raceId, trackName)
+        val doc = Jsoup.parse(raceListHtml)
+        val raceItems = doc.select("div.raceItem.clickableRace")
+        raceItems.forEach { item ->
+            val eventName = item.select("span.largeRaceText a").text()
+            val trackName = item.select("span.smallRaceText a").text()
+            val raceId = item.select("span.largeRaceText a").attr("href")
+                .substringAfterLast("/")
+
+            tmpEventList[raceId] = RaceDataIndexItem(raceId, eventName, trackName)
+            log.debug("found race <${raceId}> called $eventName at $trackName")
         }
 
-        val eventNameRE = Regex("class=\"largeRaceText\"><a href=\"(.*?)\">(.*?)</a")
-        val eventMatchResult = eventNameRE.findAll(raceListHtml)
-        for (result in eventMatchResult) {
-            val link = result.groupValues[1]
-            val raceId = link.split("/").let {
-                it[it.size - 1].toInt().toString()
-            }
-            val eventName = result.groupValues[2]
-            tmpEventList[raceId]?.let {
-                it.eventName = eventName
-            }
-        }
-
-        log.info("finished loading race index data ")
+        log.info("finished loading race index data : found ${tmpEventList.size} live races ")
         eventList = tmpEventList.toMap()
     }
 

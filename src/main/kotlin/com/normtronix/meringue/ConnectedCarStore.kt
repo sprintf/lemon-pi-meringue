@@ -3,6 +3,11 @@ package com.normtronix.meringue
 import com.google.cloud.Timestamp
 import com.google.cloud.firestore.DocumentSnapshot
 import com.google.cloud.firestore.Firestore
+import com.normtronix.meringue.SharedFirestoreAccess.Companion.DEVICE_ID
+import com.normtronix.meringue.SharedFirestoreAccess.Companion.IP
+import com.normtronix.meringue.SharedFirestoreAccess.Companion.ONLINE_CARS
+import com.normtronix.meringue.SharedFirestoreAccess.Companion.TEN_MINUTES
+import com.normtronix.meringue.SharedFirestoreAccess.Companion.TTL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.Logger
@@ -10,8 +15,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 import java.util.concurrent.TimeUnit
-
-
 
 /**
  * This class keeps an up-to-date set of cars that are connected up to meringue.
@@ -31,7 +34,9 @@ class ConnectedCarStore() {
     }
 
     @Autowired
-    lateinit var db : Firestore
+    lateinit var db: Firestore
+
+    private val sharedAccess: SharedFirestoreAccess by lazy { SharedFirestoreAccess(db) }
 
     /**
      * Store connected car details and detect reinstall scenario.
@@ -78,12 +83,8 @@ class ConnectedCarStore() {
     )
 
     suspend fun getStatus(trackCode: String, carNumber: String): CarConnectedStatus? = withContext(Dispatchers.IO) {
-        val doc = db.collection(ONLINE_CARS).document("$trackCode:$carNumber").get().get()
-        when (doc.contains(TTL) and doc.contains(IP)) {
-            true -> CarConnectedStatus(isRecentTTL(doc),
-                doc.getString(IP),
-                doc.getString(DEVICE_ID))
-            else -> null
+        sharedAccess.getCarStatus(trackCode, carNumber)?.let {
+            CarConnectedStatus(it.isOnline, it.ipAddress, it.deviceId)
         }
     }
 
@@ -121,11 +122,6 @@ class ConnectedCarStore() {
     companion object {
         val log: Logger = LoggerFactory.getLogger(ConnectedCarStore::class.java)
 
-        internal const val ONLINE_CARS = "onlineCars"
-        private const val IP = "ip"
         private const val KEY = "key"
-        private const val DEVICE_ID = "dId"
-        private const val TTL = "ttl"
-        private const val TEN_MINUTES = 10 * 60
     }
 }

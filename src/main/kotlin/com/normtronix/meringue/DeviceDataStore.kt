@@ -2,6 +2,11 @@ package com.normtronix.meringue
 
 import com.google.cloud.Timestamp
 import com.google.cloud.firestore.Firestore
+import com.normtronix.meringue.SharedFirestoreAccess.Companion.CAR_NUMBER
+import com.normtronix.meringue.SharedFirestoreAccess.Companion.DEVICE_IDS
+import com.normtronix.meringue.SharedFirestoreAccess.Companion.EMAIL_ADDRESSES
+import com.normtronix.meringue.SharedFirestoreAccess.Companion.TEAM_CODE
+import com.normtronix.meringue.SharedFirestoreAccess.Companion.TRACK_CODE
 import com.normtronix.meringue.event.NewDeviceRegisteredEvent
 import com.normtronix.meringue.event.NewEmailAddressAddedEvent
 import com.normtronix.meringue.event.SendEmailAddressesToCarEvent
@@ -24,6 +29,8 @@ class DeviceDataStore {
 
     @Autowired
     lateinit var db: Firestore
+
+    private val sharedAccess: SharedFirestoreAccess by lazy { SharedFirestoreAccess(db) }
 
     @PreDestroy
     fun cleanup() {
@@ -164,30 +171,17 @@ class DeviceDataStore {
 
     suspend fun findDevicesByEmailAndTeamCode(email: String, teamCode: String): List<String> {
         return try {
-            val query = db.collection(DEVICE_IDS)
-                .whereArrayContains(EMAIL_ADDRESSES, email)
-                .get()
-                .get(10, TimeUnit.SECONDS)
-            query.documents
-                .filter { it.getString(TEAM_CODE) == teamCode }
-                .map { it.id }
+            sharedAccess.findDevicesByEmailAndTeamCode(email, teamCode)
         } catch (e: Exception) {
             log.error("failed to find devices by email and team code", e)
             emptyList()
         }
     }
-    
+
     suspend fun getDeviceInfo(deviceId: String): DeviceInfo? {
         return try {
-            val doc = db.collection(DEVICE_IDS).document(deviceId).get().get(10, TimeUnit.SECONDS)
-            if (doc.exists()) {
-                val track = doc.getString(TRACK_CODE) ?: return null
-                val car = doc.getString(CAR_NUMBER) ?: return null
-                val team = doc.getString(TEAM_CODE) ?: return null
-                val emails = (doc.get(EMAIL_ADDRESSES) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                DeviceInfo(track, car, team, emails)
-            } else {
-                null
+            sharedAccess.getDeviceInfo(deviceId)?.let {
+                DeviceInfo(it.trackCode, it.carNumber, it.teamCode, it.emailAddresses)
             }
         } catch (e: Exception) {
             log.error("failed to get device info for $deviceId", e)
@@ -198,11 +192,6 @@ class DeviceDataStore {
     companion object {
         val log: Logger = LoggerFactory.getLogger(DeviceDataStore::class.java)
 
-        internal const val DEVICE_IDS = "DeviceIds"
-        private const val TRACK_CODE = "trackCode"
-        private const val CAR_NUMBER = "carNumber"
-        private const val TEAM_CODE = "teamCode"
-        private const val EMAIL_ADDRESSES = "emailAddresses"
         private const val IP_ADDRESS = "ipAddress"
         private const val CREATED_AT = "createdAt"
         private const val UPDATED_AT = "updatedAt"

@@ -61,9 +61,6 @@ open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), In
     lateinit var raceLister1: DS1RaceLister
 
     @Autowired
-    lateinit var raceLister2: DS2RaceLister
-
-    @Autowired
     lateinit var lemonPiService: Server
 
     @Autowired
@@ -257,17 +254,7 @@ open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), In
                     .build()
             }
             .collect(Collectors.toList())
-        val liveRacesRH = raceLister2.getLiveRaces(request.termList.toList())
-            .map {
-                MeringueAdmin.LiveRace.newBuilder()
-                    .setRaceId(it.raceId)
-                    .setTrackName(it.trackName)
-                    .setEventName(it.eventName)
-                    .setProvider(MeringueAdmin.RaceDataProvider.PROVIDER_RH)
-                    .build()
-            }
-            .collect(Collectors.toList())
-        val allRaces = liveRacesRH + liveRacesRM
+        val allRaces = liveRacesRM
         val searchTerms: List<String> = request.termList.stream().map {
             it.lowercase()
         }.collect(Collectors.toList())

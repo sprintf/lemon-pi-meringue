@@ -5,8 +5,8 @@ import com.google.gson.annotations.SerializedName
 import com.normtronix.meringue.AdminService
 import com.normtronix.meringue.MeringueAdmin
 import com.normtronix.meringue.event.*
-import io.ktor.util.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import me.xdrop.fuzzywuzzy.FuzzySearch
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
@@ -22,9 +22,6 @@ class RaceSchedule : InitializingBean, EventHandler {
 
     @Autowired
     lateinit var raceLister1: DS1RaceLister
-
-    @Autowired
-    lateinit var raceLister2: DS2RaceLister
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Autowired
@@ -94,17 +91,6 @@ class RaceSchedule : InitializingBean, EventHandler {
                 if (selectedRace.size == 1) {
                     log.info("selected race at ${e.trackCode} from RaceMonitor")
                     connectToRace(e.trackCode, selectedRace[0], MeringueAdmin.RaceDataProvider.PROVIDER_RM)
-                } else {
-                    // try racehero instead
-                    val backupRace = raceLister2.getLiveRaces(emptyList())
-                        .filter {
-                            score(this, it) > 50
-                        }
-                        .collect(Collectors.toList())
-                    if (backupRace.size == 1) {
-                        log.info("selected race at ${e.trackCode} from RaceHero")
-                        connectToRace(e.trackCode, backupRace[0], MeringueAdmin.RaceDataProvider.PROVIDER_RH)
-                    }
                 }
             } ?: log.info("no live races found at ${e.trackCode}")
         }
@@ -128,22 +114,9 @@ class RaceSchedule : InitializingBean, EventHandler {
     }
 
     companion object {
-        private val delimiters = listOf(" ", "@", ":", "/", "-").toTypedArray()
-        private val stopWords = listOf("the", "road", "international", "raceway", "track", "park")
 
         fun score(target: String, o1: RaceDataIndexItem): Int {
-            val targetTerms = target.lowercase().split(*delimiters).filterNot { it in stopWords }
-            val score = ((o1.eventName?.split(*delimiters) ?: emptyList()) +
-                    o1.trackName.split(*delimiters))
-                .stream()
-                .filter {
-                    !(it.lowercase() in stopWords)
-                }
-                .filter {
-                    it.lowercase() in targetTerms
-                }
-                .count().toInt()
-            return (score * 100 / targetTerms.size)
+            return FuzzySearch.tokenSetRatio(target, o1.eventName + "@" + o1.trackName)
         }
 
         val log: Logger = LoggerFactory.getLogger(RaceSchedule::class.java)

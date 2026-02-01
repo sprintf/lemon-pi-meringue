@@ -3,30 +3,46 @@ name: Base Reusable Kotlin Application
 
 on:
   workflow_call:
+    outputs:
+      cache-hit:
+        description: "Whether the build artifact was restored from cache"
+        value: ${{ jobs.build.outputs.cache-hit }}
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache-jar.outputs.cache-hit }}
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check for cached build artifact
+        id: cache-jar
+        uses: actions/cache@v4
+        with:
+          path: build/libs/*.jar
+          key: bootjar-${{ github.sha }}
+
       - name: Set up JDK 17
+        if: steps.cache-jar.outputs.cache-hit != 'true'
         uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: temurin
 
       - name: Validate Gradle
+        if: steps.cache-jar.outputs.cache-hit != 'true'
         uses: gradle/actions/wrapper-validation@v3
 
       - name: Setup Gradle
+        if: steps.cache-jar.outputs.cache-hit != 'true'
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Build with Gradle
+        if: steps.cache-jar.outputs.cache-hit != 'true'
         run: ./gradlew bootJar --build-cache
         env:
           GITHUB_ACTOR: ${{ github.actor }}

@@ -105,7 +105,7 @@ class DeviceDataStore {
         }
     }
 
-    suspend fun addEmailAddress(deviceId: String, email: String) {
+    suspend fun addEmailAddress(deviceId: String, email: String) : Boolean {
         try {
             val docRef = db.collection(DEVICE_IDS).document(deviceId)
             val doc = docRef.get().get(10, TimeUnit.SECONDS)
@@ -116,11 +116,13 @@ class DeviceDataStore {
                     log.info("added email {} to device {}", email, deviceId)
                     val carNumber = doc.getString(CAR_NUMBER) ?: ""
                     NewEmailAddressAddedEvent(email, carNumber).emitAsync()
+                    return true
                 }
             }
         } catch (e: Exception) {
             log.error("failed to add email address to device $deviceId", e)
         }
+        return false
     }
 
     suspend fun removeEmailAddress(deviceId: String, email: String) {

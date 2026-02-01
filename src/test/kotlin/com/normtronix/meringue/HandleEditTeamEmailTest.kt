@@ -15,6 +15,7 @@ internal class HandleEditTeamEmailTest {
 
     private lateinit var server: Server
     private lateinit var emailService: EmailAddressService
+    private lateinit var mailService: MailService
     private lateinit var deviceStore: DeviceDataStore
     private lateinit var carChannel: MutableSharedFlow<LemonPi.ToCarMessage>
 
@@ -22,8 +23,10 @@ internal class HandleEditTeamEmailTest {
     fun setup() {
         server = Server()
         emailService = mockk()
+        mailService = mockk()
         deviceStore = mockk()
         server.emailService = emailService
+        server.mailService = mailService
         server.deviceStore = deviceStore
         server.carStore = mockk()
 
@@ -40,7 +43,8 @@ internal class HandleEditTeamEmailTest {
         val editMsg = buildEditMessage("good@test.com", add = true)
 
         coEvery { emailService.isDeliverable("good@test.com") } returns true
-        coEvery { deviceStore.addEmailAddress("device1", "good@test.com") } just runs
+        coEvery { mailService.sendWelcomeEmail("good@test.com", "42") } returns true
+        coEvery { deviceStore.addEmailAddress("device1", "good@test.com") } returns true
         coEvery { deviceStore.getEmailAddresses("device1") } returns listOf("good@test.com")
 
         server.handleEditTeamEmailAddress(request, editMsg)
@@ -116,7 +120,8 @@ internal class HandleEditTeamEmailTest {
         val editMsg = buildEditMessage("  MiXeD@Test.COM  ", add = true)
 
         coEvery { emailService.isDeliverable("mixed@test.com") } returns true
-        coEvery { deviceStore.addEmailAddress("device1", "mixed@test.com") } just runs
+        coEvery { mailService.sendWelcomeEmail("mixed@test.com", "42") } returns true
+        coEvery { deviceStore.addEmailAddress("device1", "mixed@test.com") } returns true
         coEvery { deviceStore.getEmailAddresses("device1") } returns listOf("mixed@test.com")
 
         server.handleEditTeamEmailAddress(request, editMsg)

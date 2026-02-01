@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: sync code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: pull in previous artifact
         uses: actions/download-artifact@v4
         with:
@@ -31,15 +31,24 @@ jobs:
       - name: 'Configure Docker'
         run: gcloud auth configure-docker us.gcr.io
 
-      - name: build docker image
-        run: docker build -t us.gcr.io/meringue/meringue:$GITHUB_SHA .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: push docker image
-        run: docker push us.gcr.io/meringue/meringue:$GITHUB_SHA
+      - name: Build and push meringue image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: us.gcr.io/meringue/meringue:${{ github.sha }}
+          cache-from: type=gha,scope=meringue
+          cache-to: type=gha,mode=max,scope=meringue
 
-      - name: build envoy docker image
-        run: cd envoy && docker build -t us.gcr.io/meringue/envoy:$GITHUB_SHA .
-
-      - name: push envoy docker image
-        run: docker push us.gcr.io/meringue/envoy:$GITHUB_SHA
+#      - name: Build and push envoy image
+#        uses: docker/build-push-action@v6
+#        with:
+#          context: ./envoy
+#          push: true
+#          tags: us.gcr.io/meringue/envoy:${{ github.sha }}
+#          cache-from: type=gha,scope=envoy
+#          cache-to: type=gha,mode=max,scope=envoy
 

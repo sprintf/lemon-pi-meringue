@@ -5,7 +5,7 @@ import io.grpc.Metadata
 import io.grpc.ServerCall
 import io.grpc.ServerCallHandler
 import io.grpc.ServerInterceptor
-import org.springframework.security.authentication.BadCredentialsException
+import io.grpc.Status
 import org.springframework.stereotype.Component
 
 
@@ -15,18 +15,15 @@ class PitcrewSecurityInterceptor : ServerInterceptor {
     private val unauthenticatedMethods = setOf("ping", "auth")
 
     override fun <ReqT : Any?, RespT : Any?> interceptCall(
-        call: ServerCall<ReqT, RespT>?,
-        headers: Metadata?,
-        next: ServerCallHandler<ReqT, RespT>?
+        call: ServerCall<ReqT, RespT>,
+        headers: Metadata,
+        next: ServerCallHandler<ReqT, RespT>
     ): ServerCall.Listener<ReqT> {
-        if (!unauthenticatedMethods.contains(call?.methodDescriptor?.bareMethodName)) {
+        if (!unauthenticatedMethods.contains(call.methodDescriptor?.bareMethodName)) {
             if (pitcrewContext.get() == null) {
-                // there should have been auth provided, but it is missing
-                throw BadCredentialsException("invalid or missing authtoken")
+                call.close(Status.UNAUTHENTICATED.withDescription("invalid or missing auth token"), Metadata())
+                return object : ServerCall.Listener<ReqT>() {}
             }
-        }
-        if (next == null) {
-            throw Exception("badly wired interceptors")
         }
         return next.startCall(call, headers)
     }

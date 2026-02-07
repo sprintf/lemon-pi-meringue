@@ -204,6 +204,160 @@ internal class PitcrewIntegrationTest {
     }
 
     @Test
+    fun testAuthAndSetTargetLapTime() {
+        val stub = setupPitcrewStub()
+
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "team123") } returns
+                listOf("device1")
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "team123", listOf("user@test.com"))
+        coEvery { server.setTargetLapTime("thil", "181", 95) } returns true
+
+        val authResponse = stub.auth(Pitcrew.PitAuthRequest.newBuilder()
+            .setUsername("user@test.com")
+            .setTeamCode("team123")
+            .build())
+
+        val authedStub = addAuthHeader(stub, authResponse.bearerToken)
+        val result = authedStub.setTargetLapTime(Pitcrew.PitSetTargetLapTimeRequest.newBuilder()
+            .setTrackCode("thil")
+            .setCarNumber("181")
+            .setTargetTimeSeconds(95)
+            .build())
+        assertTrue(result.value)
+    }
+
+    @Test
+    fun testAuthAndResetFastLapTime() {
+        val stub = setupPitcrewStub()
+
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "team123") } returns
+                listOf("device1")
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "team123", listOf("user@test.com"))
+        coEvery { server.resetFastLapTime("thil", "181") } returns true
+
+        val authResponse = stub.auth(Pitcrew.PitAuthRequest.newBuilder()
+            .setUsername("user@test.com")
+            .setTeamCode("team123")
+            .build())
+
+        val authedStub = addAuthHeader(stub, authResponse.bearerToken)
+        val result = authedStub.resetFastLapTime(Pitcrew.PitResetFastLapTimeRequest.newBuilder()
+            .setTrackCode("thil")
+            .setCarNumber("181")
+            .build())
+        assertTrue(result.value)
+    }
+
+    @Test
+    fun testAuthAndSetDriverName() {
+        val stub = setupPitcrewStub()
+
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "team123") } returns
+                listOf("device1")
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "team123", listOf("user@test.com"))
+        coEvery { server.setDriverName("thil", "181", "John Smith") } returns true
+
+        val authResponse = stub.auth(Pitcrew.PitAuthRequest.newBuilder()
+            .setUsername("user@test.com")
+            .setTeamCode("team123")
+            .build())
+
+        val authedStub = addAuthHeader(stub, authResponse.bearerToken)
+        val result = authedStub.setDriverName(Pitcrew.PitSetDriverNameRequest.newBuilder()
+            .setTrackCode("thil")
+            .setCarNumber("181")
+            .setDriverName("John Smith")
+            .build())
+        assertTrue(result.value)
+    }
+
+    @Test
+    fun testSendDriverMessageToWrongCarFails() {
+        val stub = setupPitcrewStub()
+
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "team123") } returns
+                listOf("device1")
+        // Device is registered for car 181, not car 999
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "team123", listOf("user@test.com"))
+
+        val authResponse = stub.auth(Pitcrew.PitAuthRequest.newBuilder()
+            .setUsername("user@test.com")
+            .setTeamCode("team123")
+            .build())
+
+        val authedStub = addAuthHeader(stub, authResponse.bearerToken)
+        val exception = assertThrows(io.grpc.StatusRuntimeException::class.java) {
+            authedStub.sendDriverMessage(Pitcrew.PitDriverMessageRequest.newBuilder()
+                .setTrackCode("thil")
+                .setCarNumber("999")
+                .setMessage("Box this lap")
+                .build())
+        }
+        // AccessDeniedException maps to UNKNOWN since there's no GrpcExceptionHandler for it
+        assertNotNull(exception)
+    }
+
+    @Test
+    fun testGetCarStatusOffline() {
+        val stub = setupPitcrewStub()
+
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "team123") } returns
+                listOf("device1")
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "team123", listOf("user@test.com"))
+        // Car is not connected — getStatus returns null
+        coEvery { connectedCarStore.getStatus("thil", "181") } returns null
+
+        val authResponse = stub.auth(Pitcrew.PitAuthRequest.newBuilder()
+            .setUsername("user@test.com")
+            .setTeamCode("team123")
+            .build())
+
+        val authedStub = addAuthHeader(stub, authResponse.bearerToken)
+        val statusResponse = authedStub.getCarStatus(Empty.getDefaultInstance())
+
+        assertEquals(1, statusResponse.statusListCount)
+        val status = statusResponse.getStatusList(0)
+        assertEquals("181", status.carNumber)
+        assertFalse(status.online)
+        assertEquals("", status.ipAddress)
+    }
+
+    @Test
+    fun testAuthWithMultipleDevices() {
+        val stub = setupPitcrewStub()
+
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "team123") } returns
+                listOf("device1", "device2")
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "team123", listOf("user@test.com"))
+        coEvery { deviceStore.getDeviceInfo("device2") } returns
+                DeviceDataStore.DeviceInfo("sonoma", "42", "team123", listOf("user@test.com"))
+        coEvery { connectedCarStore.getStatus("thil", "181") } returns
+                ConnectedCarStore.CarConnectedStatus(true, "10.0.0.1", "device1")
+        coEvery { connectedCarStore.getStatus("sonoma", "42") } returns
+                ConnectedCarStore.CarConnectedStatus(false, null, "device2")
+
+        val authResponse = stub.auth(Pitcrew.PitAuthRequest.newBuilder()
+            .setUsername("user@test.com")
+            .setTeamCode("team123")
+            .build())
+
+        val authedStub = addAuthHeader(stub, authResponse.bearerToken)
+        val statusResponse = authedStub.getCarStatus(Empty.getDefaultInstance())
+
+        assertEquals(2, statusResponse.statusListCount)
+        val car181 = statusResponse.statusListList.find { it.carNumber == "181" }!!
+        assertTrue(car181.online)
+        val car42 = statusResponse.statusListList.find { it.carNumber == "42" }!!
+        assertFalse(car42.online)
+    }
+
+    @Test
     fun testAuthWithInvalidCredentialsFails() {
         val stub = setupPitcrewStub()
 

@@ -51,6 +51,8 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
     }
 
     override suspend fun getCarData(request: CarData.CarDataRequest): CarData.CarDataResponse {
+        val view = adminService.getRaceView(request.trackCode) ?: throw InvalidRaceId()
+        view.lookupCar(request.carNumber) ?: throw NoSuchCarException("no such car")
         return buildCarData(request.trackCode, request.carNumber)
     }
 
@@ -81,41 +83,47 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
     }
 
     internal fun buildCarData(trackCode: String, carNumber: String): CarData.CarDataResponse {
-        val view = adminService.getRaceView(trackCode) ?: throw InvalidRaceId()
-        // log.info(view.toString())
-        view.lookupCar(carNumber)?.let {
-            val carAhead = it.getCarAhead(PositionEnum.IN_CLASS) ?: it.getCarAhead(PositionEnum.OVERALL)
-            val bldr = CarData.CarDataResponse.newBuilder().apply {
-                this.carNumber = it.carNumber
+        val view = adminService.getRaceView(trackCode)
+        val key = buildKey(trackCode, carNumber)
+        val bldr = CarData.CarDataResponse.newBuilder().apply {
+            this.carNumber = carNumber
+        }
+
+        val carInRace = view?.lookupCar(carNumber)
+        if (carInRace != null) {
+            val carAhead = carInRace.getCarAhead(PositionEnum.IN_CLASS) ?: carInRace.getCarAhead(PositionEnum.OVERALL)
+            bldr.apply {
                 this.flagStatus = convertStatus(view.raceStatus)
-                this.lapCount = it.lapsCompleted
-                this.position = it.position
-                this.positionInClass = it.positionInClass
-                this.lastLapTime = it.lastLapTime.toFloat()
-                this.gap = it.gap((carAhead))
-                this.fastestLap = it.fastestLap
-                this.fastestLapTime = it.fastestLapTime.toFloat()
-                it.lastLapAbsTimestamp?.let { ts ->
+                this.lapCount = carInRace.lapsCompleted
+                this.position = carInRace.position
+                this.positionInClass = carInRace.positionInClass
+                this.lastLapTime = carInRace.lastLapTime.toFloat()
+                this.gap = carInRace.gap(carAhead)
+                this.fastestLap = carInRace.fastestLap
+                this.fastestLapTime = carInRace.fastestLapTime.toFloat()
+                carInRace.lastLapAbsTimestamp?.let { ts ->
                     this.timestamp = ts.toEpochMilli()
                 }
             }
             carAhead?.let { ahead ->
                 bldr.carAhead = ahead.carNumber
             }
-
-            val key = buildKey(trackCode, carNumber)
-            telemetryMap.getIfPresent(key)?.apply {
-                bldr.coolantTemp = this.coolantTemp
-                bldr.fuelRemainingPercent = this.fuelRemainingPercent
-                bldr.putAllExtraSensors(this.extraSensors)
-            }
-            driverMessageMap.getIfPresent(key)?.apply {
-                bldr.driverMessage = this.message
-            }
-
-            return bldr.build()
         }
-        throw NoSuchCarException("no such car")
+
+        telemetryMap.getIfPresent(key)?.apply {
+            bldr.coolantTemp = this.coolantTemp
+            bldr.fuelRemainingPercent = this.fuelRemainingPercent
+            bldr.putAllExtraSensors(this.extraSensors)
+            if (carInRace == null) {
+                bldr.lapCount = this.lapCount
+                bldr.lastLapTime = this.lastLapTimeSec
+            }
+        }
+        driverMessageMap.getIfPresent(key)?.apply {
+            bldr.driverMessage = this.message
+        }
+
+        return bldr.build()
     }
 
     internal class NoSuchCarException(s: String) : Exception(s)

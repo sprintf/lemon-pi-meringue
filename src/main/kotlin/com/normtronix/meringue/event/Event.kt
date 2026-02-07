@@ -94,7 +94,11 @@ open class Event(val debounce: Boolean = false) {
             handlers?.forEach {
                 if (it.filter(event)) {
                     launch {
-                        it.handler.handleEvent(event)
+                        try {
+                            it.handler.handleEvent(event)
+                        } catch (e: Exception) {
+                            log.error("error handling event $event in ${it.handler.javaClass.simpleName}", e)
+                        }
                     }
                 }
             }

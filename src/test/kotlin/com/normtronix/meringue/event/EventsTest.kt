@@ -3,10 +3,22 @@ package com.normtronix.meringue.event
 import com.normtronix.meringue.LemonPi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 internal class EventsTest {
+
+    @BeforeEach
+    fun setup() {
+        Events.registry.clear()
+    }
+
+    @AfterEach
+    fun teardown() {
+        Events.registry.clear()
+    }
 
     @Test
     fun testCallingBack() {
@@ -61,6 +73,31 @@ internal class EventsTest {
             assertEquals(0, h.calledCount)
             RaceStatusEvent("t-1","black").emit()
             assertEquals(1, h.calledCount)
+        }
+    }
+
+    @Test
+    fun testHandlerExceptionDoesNotAffectOtherHandlers() {
+        val goodHandler1 = TestHandler()
+        val goodHandler2 = TestHandler()
+        val throwingHandler = ThrowingHandler()
+        Events.register(RaceStatusEvent::class.java, goodHandler1)
+        Events.register(RaceStatusEvent::class.java, throwingHandler)
+        Events.register(RaceStatusEvent::class.java, goodHandler2)
+        runBlocking {
+            RaceStatusEvent("thil", "red").emit()
+        }
+        assertEquals(1, goodHandler1.calledCount)
+        assertEquals(1, goodHandler2.calledCount)
+        assertTrue(throwingHandler.called)
+    }
+
+    internal class ThrowingHandler : EventHandler {
+        var called = false
+
+        override suspend fun handleEvent(e: Event) {
+            called = true
+            throw RuntimeException("handler failure")
         }
     }
 

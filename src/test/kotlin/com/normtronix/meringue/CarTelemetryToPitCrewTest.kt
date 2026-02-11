@@ -63,7 +63,7 @@ internal class CarTelemetryToPitCrewTest {
     )
 
     private fun streamAndCollect(
-        results: MutableList<Pitcrew.PitCarDataResponse>,
+        results: MutableList<Pitcrew.ToPitCrewMessage>,
         timeoutMs: Long = 500,
         carActions: suspend () -> Unit
     ) {
@@ -74,7 +74,7 @@ internal class CarTelemetryToPitCrewTest {
                         .setTrackCode("test1")
                         .setCarNumber("833")
                         .build()
-                    pitcrewService.streamCarData(request).collect { response ->
+                    pitcrewService.streamCarDataV2(request).collect { response ->
                         results.add(response)
                     }
                 }
@@ -98,7 +98,7 @@ internal class CarTelemetryToPitCrewTest {
         every { carDataService.adminService.getRaceView("test1") } returns buildRaceView()
         setPitcrewAuth()
 
-        val results = mutableListOf<Pitcrew.PitCarDataResponse>()
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
         streamAndCollect(results) {
             server.sendMessageFromCar(createPingMessage(1))
             server.sendMessageFromCar(createPingMessage(2))
@@ -106,12 +106,13 @@ internal class CarTelemetryToPitCrewTest {
         }
 
         assertEquals(1, results.size)
-        val response = results[0]
-        assertEquals("833", response.carNumber)
-        assertEquals(200, response.coolantTemp)
-        assertEquals(75, response.fuelRemainingPercent)
-        assertEquals(10, response.position)
-        assertEquals(1, response.positionInClass)
+        assertTrue(results[0].hasCarData())
+        val carData = results[0].carData
+        assertEquals("833", carData.carNumber)
+        assertEquals(200, carData.coolantTemp)
+        assertEquals(75, carData.fuelRemainingPercent)
+        assertEquals(10, carData.position)
+        assertEquals(1, carData.positionInClass)
     }
 
     @Test
@@ -119,7 +120,7 @@ internal class CarTelemetryToPitCrewTest {
         every { carDataService.adminService.getRaceView("test1") } returns null
         setPitcrewAuth()
 
-        val results = mutableListOf<Pitcrew.PitCarDataResponse>()
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
         streamAndCollect(results) {
             server.sendMessageFromCar(createPingMessage(1))
             server.sendMessageFromCar(createPingMessage(2))
@@ -127,15 +128,16 @@ internal class CarTelemetryToPitCrewTest {
         }
 
         assertEquals(1, results.size)
-        val response = results[0]
-        assertEquals("833", response.carNumber)
-        assertEquals(200, response.coolantTemp)
-        assertEquals(75, response.fuelRemainingPercent)
-        assertEquals(5, response.lapCount)
-        assertEquals(93.5f, response.lastLapTime)
-        assertEquals(0, response.position)
-        assertEquals(0, response.positionInClass)
-        assertEquals(RaceFlagStatusOuterClass.RaceFlagStatus.UNKNOWN, response.flagStatus)
+        assertTrue(results[0].hasCarData())
+        val carData = results[0].carData
+        assertEquals("833", carData.carNumber)
+        assertEquals(200, carData.coolantTemp)
+        assertEquals(75, carData.fuelRemainingPercent)
+        assertEquals(5, carData.lapCount)
+        assertEquals(93.5f, carData.lastLapTime)
+        assertEquals(0, carData.position)
+        assertEquals(0, carData.positionInClass)
+        assertEquals(RaceFlagStatusOuterClass.RaceFlagStatus.UNKNOWN, carData.flagStatus)
     }
 
     @Test
@@ -143,7 +145,7 @@ internal class CarTelemetryToPitCrewTest {
         every { carDataService.adminService.getRaceView("test1") } returns buildRaceView()
         setPitcrewAuth()
 
-        val results = mutableListOf<Pitcrew.PitCarDataResponse>()
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
         streamAndCollect(results) {
             server.sendMessageFromCar(createTelemetryMessage(1, lapCount = 3, coolantTemp = 190))
             delay(50)
@@ -153,9 +155,9 @@ internal class CarTelemetryToPitCrewTest {
         }
 
         assertEquals(3, results.size)
-        assertEquals(190, results[0].coolantTemp)
-        assertEquals(195, results[1].coolantTemp)
-        assertEquals(200, results[2].coolantTemp)
+        assertEquals(190, results[0].carData.coolantTemp)
+        assertEquals(195, results[1].carData.coolantTemp)
+        assertEquals(200, results[2].carData.coolantTemp)
     }
 
     @Test
@@ -163,7 +165,7 @@ internal class CarTelemetryToPitCrewTest {
         every { carDataService.adminService.getRaceView("test1") } returns buildRaceView()
         setPitcrewAuth()
 
-        val results = mutableListOf<Pitcrew.PitCarDataResponse>()
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
 
         runBlocking {
             coroutineScope {
@@ -172,7 +174,7 @@ internal class CarTelemetryToPitCrewTest {
                         .setTrackCode("test1")
                         .setCarNumber("833")
                         .build()
-                    pitcrewService.streamCarData(request).collect { response ->
+                    pitcrewService.streamCarDataV2(request).collect { response ->
                         results.add(response)
                     }
                 }
@@ -196,14 +198,16 @@ internal class CarTelemetryToPitCrewTest {
 
         // Should have 2 responses: one from telemetry, one from driver message
         assertEquals(2, results.size)
-        assertEquals("Box this lap", results[1].driverMessage)
+        assertTrue(results[0].hasCarData())
+        assertTrue(results[1].hasCarData())
+        assertEquals("Box this lap", results[1].carData.driverMessage)
     }
 
     @Test
     fun testStreamCarDataWithoutAuthFails() {
         // Don't set pitcrew context — simulates unauthenticated call
         assertThrows(BadCredentialsException::class.java) {
-            pitcrewService.streamCarData(
+            pitcrewService.streamCarDataV2(
                 Pitcrew.PitCarDataRequest.newBuilder()
                     .setTrackCode("test1")
                     .setCarNumber("833")
@@ -217,7 +221,7 @@ internal class CarTelemetryToPitCrewTest {
         every { carDataService.adminService.getRaceView("test1") } returns buildRaceView()
         setPitcrewAuth()
 
-        val results = mutableListOf<Pitcrew.PitCarDataResponse>()
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
         streamAndCollect(results) {
             server.sendMessageFromCar(createPingMessage(1))
             server.sendMessageFromCar(createPingMessage(2))
@@ -232,7 +236,7 @@ internal class CarTelemetryToPitCrewTest {
         every { carDataService.adminService.getRaceView("test1") } returns buildRaceView()
         setPitcrewAuth()
 
-        val results = mutableListOf<Pitcrew.PitCarDataResponse>()
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
         streamAndCollect(results) {
             val telemetry = LemonPi.ToPitMessage.newBuilder()
                 .setTelemetry(LemonPi.CarTelemetry.newBuilder()
@@ -249,9 +253,115 @@ internal class CarTelemetryToPitCrewTest {
         }
 
         assertEquals(1, results.size)
-        val response = results[0]
-        assertEquals(45, response.extraSensorsMap["oil_pressure"])
-        assertEquals(230, response.extraSensorsMap["oil_temp"])
+        assertTrue(results[0].hasCarData())
+        val carData = results[0].carData
+        assertEquals(45, carData.extraSensorsMap["oil_pressure"])
+        assertEquals(230, carData.extraSensorsMap["oil_temp"])
+    }
+
+    @Test
+    fun testSectorCompleteStreamsToPitCrew() {
+        every { carDataService.adminService.getRaceView("test1") } returns buildRaceView()
+        setPitcrewAuth()
+
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
+        streamAndCollect(results) {
+            server.sendMessageFromCar(createSectorMessage(1))
+        }
+
+        assertEquals(1, results.size)
+        assertTrue(results[0].hasSectorDetails())
+        val sector = results[0].sectorDetails
+        assertEquals(32.5f, sector.sectorTime)
+        assertEquals("S1", sector.sectorName)
+        assertEquals(1, sector.sectorNum)
+        assertEquals(95.0f, sector.predictedLapTime)
+        assertEquals(0.5f, sector.predictedDeltaToTarget)
+        assertEquals(-0.3f, sector.predictedDeltaToBest)
+        assertEquals(5, sector.lapCount)
+        assertEquals(31.8f, sector.bestSectorTime)
+    }
+
+    @Test
+    fun testPittingStreamsToPitCrew() {
+        every { carDataService.adminService.getRaceView("test1") } returns buildRaceView()
+        setPitcrewAuth()
+
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
+        streamAndCollect(results) {
+            server.sendMessageFromCar(createPittingMessage(1))
+        }
+
+        assertEquals(1, results.size)
+        assertTrue(results[0].hasPitting())
+    }
+
+    @Test
+    fun testLeavingPitStreamsToPitCrew() {
+        every { carDataService.adminService.getRaceView("test1") } returns buildRaceView()
+        setPitcrewAuth()
+
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
+        streamAndCollect(results) {
+            server.sendMessageFromCar(createLeavingPitMessage(1))
+        }
+
+        assertEquals(1, results.size)
+        assertTrue(results[0].hasEntering())
+    }
+
+    @Test
+    fun testMixedMessagesStreamCorrectOneofTypes() {
+        every { carDataService.adminService.getRaceView("test1") } returns buildRaceView()
+        setPitcrewAuth()
+
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
+        streamAndCollect(results) {
+            server.sendMessageFromCar(createTelemetryMessage(1))
+            delay(50)
+            server.sendMessageFromCar(createSectorMessage(2))
+            delay(50)
+            server.sendMessageFromCar(createPittingMessage(3))
+        }
+
+        assertEquals(3, results.size)
+        assertTrue(results[0].hasCarData())
+        assertTrue(results[1].hasSectorDetails())
+        assertTrue(results[2].hasPitting())
+    }
+
+    @Test
+    fun testStreamReusesFlowOnReconnect() {
+        every { carDataService.adminService.getRaceView("test1") } returns buildRaceView()
+        setPitcrewAuth()
+
+        val request = Pitcrew.PitCarDataRequest.newBuilder()
+            .setTrackCode("test1")
+            .setCarNumber("833")
+            .build()
+
+        // First and second connection should reuse the same underlying stream
+        pitcrewService.streamCarDataV2(request)
+        assertEquals(1, pitcrewService.pitcrewStreams.size)
+
+        pitcrewService.streamCarDataV2(request)
+        assertEquals(1, pitcrewService.pitcrewStreams.size)
+    }
+
+    @Test
+    fun testHasAudience() {
+        setPitcrewAuth()
+
+        assertFalse(pitcrewService.hasAudience("test1", "833"))
+
+        val request = Pitcrew.PitCarDataRequest.newBuilder()
+            .setTrackCode("test1")
+            .setCarNumber("833")
+            .build()
+        pitcrewService.streamCarDataV2(request)
+
+        assertTrue(pitcrewService.hasAudience("test1", "833"))
+        assertFalse(pitcrewService.hasAudience("test1", "999"))
     }
 
     private fun createPingMessage(seqNum: Int): LemonPi.ToPitMessage {
@@ -277,6 +387,38 @@ internal class CarTelemetryToPitCrewTest {
                 .setLastLapTime(lastLapTime)
                 .setCoolantTemp(coolantTemp)
                 .setFuelRemainingPercent(fuelRemainingPercent))
+            .build()
+    }
+
+    private fun createSectorMessage(seqNum: Int): LemonPi.ToPitMessage {
+        return LemonPi.ToPitMessage.newBuilder()
+            .setSectorDetails(LemonPi.SectorComplete.newBuilder()
+                .setSender("833")
+                .setSeqNum(seqNum)
+                .setSectorTime(32.5f)
+                .setSectorName("S1")
+                .setSectorNum(1)
+                .setPredictedLapTime(95.0f)
+                .setPredictedDeltaToTarget(0.5f)
+                .setPredictedDeltaToBest(-0.3f)
+                .setLapCount(5)
+                .setBestSectorTime(31.8f))
+            .build()
+    }
+
+    private fun createPittingMessage(seqNum: Int): LemonPi.ToPitMessage {
+        return LemonPi.ToPitMessage.newBuilder()
+            .setPitting(LemonPi.EnteringPits.newBuilder()
+                .setSender("833")
+                .setSeqNum(seqNum))
+            .build()
+    }
+
+    private fun createLeavingPitMessage(seqNum: Int): LemonPi.ToPitMessage {
+        return LemonPi.ToPitMessage.newBuilder()
+            .setEntering(LemonPi.LeavingPits.newBuilder()
+                .setSender("833")
+                .setSeqNum(seqNum))
             .build()
     }
 

@@ -67,6 +67,7 @@ class TrackMetaDataLoader {
         var radio_sync_list: Any = Any()
         var radio_sync_coords: String = ""
         var radio_sync_direction: String = ""
+        var sectors: Any = Any()
         var hidden: Boolean = false
         var reversed: Boolean = false
     }

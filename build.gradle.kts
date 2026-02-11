@@ -35,7 +35,7 @@ extra["springCloudVersion"] = "2020.0.4"
 extra["gcpLibrariesVersion"] = "26.17.0"
 
 dependencies {
-	implementation("com.normtronix:lemon-pi-protos:1.2")
+	implementation("com.normtronix:lemon-pi-protos:1.5")
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-security")

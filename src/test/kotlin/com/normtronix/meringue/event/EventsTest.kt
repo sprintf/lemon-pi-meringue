@@ -92,6 +92,71 @@ internal class EventsTest {
         assertTrue(throwingHandler.called)
     }
 
+    @Test
+    fun testSectorCompleteEvent() {
+        val h = TestHandler()
+        Events.register(SectorCompleteEvent::class.java, h)
+        runBlocking {
+            SectorCompleteEvent("thil", "181", 32.5f, "S1", 1,
+                95.0f, 0.5f, -0.3f, 5, 31.8f).emit()
+        }
+        assertEquals(1, h.calledCount)
+    }
+
+    @Test
+    fun testSectorCompleteEventFiltering() {
+        val h = TestHandler()
+        Events.register(SectorCompleteEvent::class.java, h,
+            filter = { it is SectorCompleteEvent && it.carNumber == "181" })
+        runBlocking {
+            SectorCompleteEvent("thil", "999", 32.5f, "S1", 1,
+                95.0f, 0.5f, -0.3f, 5, 31.8f).emit()
+            assertEquals(0, h.calledCount)
+            SectorCompleteEvent("thil", "181", 32.5f, "S1", 1,
+                95.0f, 0.5f, -0.3f, 5, 31.8f).emit()
+            assertEquals(1, h.calledCount)
+        }
+    }
+
+    @Test
+    fun testUnregisterRemovesHandler() {
+        val h1 = TestHandler()
+        val h2 = TestHandler()
+        Events.register(RaceStatusEvent::class.java, h1)
+        Events.register(RaceStatusEvent::class.java, h2)
+        runBlocking {
+            RaceStatusEvent("thil", "red").emit()
+        }
+        assertEquals(1, h1.calledCount)
+        assertEquals(1, h2.calledCount)
+
+        Events.unregister(h1)
+        runBlocking {
+            RaceStatusEvent("thil", "green").emit()
+        }
+        assertEquals(1, h1.calledCount)
+        assertEquals(2, h2.calledCount)
+    }
+
+    @Test
+    fun testUnregisterRemovesFromMultipleEventTypes() {
+        val h = TestHandler()
+        Events.register(RaceStatusEvent::class.java, h)
+        Events.register(LapCompletedEvent::class.java, h)
+        Events.register(SectorCompleteEvent::class.java, h)
+
+        Events.unregister(h)
+
+        runBlocking {
+            RaceStatusEvent("thil", "red").emit()
+            LapCompletedEvent("thil", "red", 2, 3, 1,
+                null, "-", 300.0, -5.5, 120.0, "green").emit()
+            SectorCompleteEvent("thil", "181", 32.5f, "S1", 1,
+                95.0f, 0.5f, -0.3f, 5, 31.8f).emit()
+        }
+        assertEquals(0, h.calledCount)
+    }
+
     internal class ThrowingHandler : EventHandler {
         var called = false
 

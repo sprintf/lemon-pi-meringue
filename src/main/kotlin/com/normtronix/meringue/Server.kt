@@ -234,6 +234,19 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                 trackCode,
                 carNumber
             ).emit()
+        } else if (request.hasSectorDetails()) {
+            SectorCompleteEvent(
+                trackCode,
+                carNumber,
+                request.sectorDetails.sectorTime,
+                request.sectorDetails.sectorName,
+                request.sectorDetails.sectorNum,
+                request.sectorDetails.predictedLapTime,
+                request.sectorDetails.predictedDeltaToTarget,
+                request.sectorDetails.predictedDeltaToBest,
+                request.sectorDetails.lapCount,
+                request.sectorDetails.bestSectorTime
+            ).emit()
         } else if (request.hasEmailAddress()) {
             handleEditTeamEmailAddress(requestDetails, request.emailAddress)
         }

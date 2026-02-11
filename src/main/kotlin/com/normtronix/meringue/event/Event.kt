@@ -258,6 +258,24 @@ class NewEmailAddressAddedEvent(
     }
 }
 
+class SectorCompleteEvent(
+    val trackCode: String,
+    val carNumber: String,
+    val sectorTime: Float,
+    val sectorName: String,
+    val sectorNum: Int,
+    val predictedLapTime: Float,
+    val predictedDeltaToTarget: Float,
+    val predictedDeltaToBest: Float,
+    val lapCount: Int,
+    val bestSectorTime: Float
+): Event() {
+
+    override fun toString(): String {
+        return "SectorCompleteEvent : $carNumber ($trackCode) sector=$sectorNum time=$sectorTime"
+    }
+}
+
 class SendEmailAddressesToCarEvent(
     val trackCode: String,
     val carNumber: String,

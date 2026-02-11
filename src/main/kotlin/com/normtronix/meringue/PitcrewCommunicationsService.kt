@@ -3,9 +3,12 @@ package com.normtronix.meringue
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Empty
 import com.normtronix.meringue.PitcrewContextInterceptor.Companion.pitcrewContext
+import com.normtronix.meringue.event.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -108,31 +111,125 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         return BoolValue.of(result)
     }
 
-    override fun streamCarData(request: Pitcrew.PitCarDataRequest): Flow<Pitcrew.PitCarDataResponse> {
+    // persistent flows keyed by "trackCode:carNumber", live until server restarts after race weekend
+    internal val pitcrewStreams = mutableMapOf<String, MutableSharedFlow<Pitcrew.ToPitCrewMessage>>()
+
+    override fun streamCarDataV2(request: Pitcrew.PitCarDataRequest): Flow<Pitcrew.ToPitCrewMessage> {
         validateAccessSync(request.trackCode, request.carNumber)
-        val carDataRequest = CarData.CarDataRequest.newBuilder()
-            .setTrackCode(request.trackCode)
-            .setCarNumber(request.carNumber)
-            .build()
-        return carDataService.streamCarData(carDataRequest).map { carData ->
-            Pitcrew.PitCarDataResponse.newBuilder()
-                .setCarNumber(carData.carNumber)
-                .setTimestamp(carData.timestamp)
-                .setFlagStatus(carData.flagStatus)
-                .setLapCount(carData.lapCount)
-                .setPosition(carData.position)
-                .setPositionInClass(carData.positionInClass)
-                .setLastLapTime(carData.lastLapTime)
-                .setGap(carData.gap)
-                .setCoolantTemp(carData.coolantTemp)
-                .setFuelRemainingPercent(carData.fuelRemainingPercent)
-                .setDriverMessage(carData.driverMessage)
-                .setCarAhead(carData.carAhead)
-                .setFastestLap(carData.fastestLap)
-                .setFastestLapTime(carData.fastestLapTime)
-                .putAllExtraSensors(carData.extraSensorsMap)
-                .build()
+        val trackCode = request.trackCode
+        val carNumber = request.carNumber
+        val key = "$trackCode:$carNumber"
+
+        val flow = pitcrewStreams.getOrPut(key) {
+            log.info("creating pitcrew stream for $carNumber at $trackCode")
+            createPitcrewStream(trackCode, carNumber)
         }
+
+        CarConnectedEvent(trackCode, carNumber).emitAsync()
+        return flow.asSharedFlow()
+    }
+
+    private fun createPitcrewStream(
+        trackCode: String,
+        carNumber: String
+    ): MutableSharedFlow<Pitcrew.ToPitCrewMessage> {
+        val flow = MutableSharedFlow<Pitcrew.ToPitCrewMessage>(
+            extraBufferCapacity = 5,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST
+        )
+
+        val handler = object : EventHandler {
+            override suspend fun handleEvent(e: Event) {
+                val message = when (e) {
+                    is CarTelemetryEvent, is LapCompletedEvent, is DriverMessageEvent -> {
+                        val carData = carDataService.buildCarData(trackCode, carNumber)
+                        Pitcrew.ToPitCrewMessage.newBuilder()
+                            .setCarData(buildPitCarData(carData))
+                            .build()
+                    }
+                    is CarPittingEvent -> {
+                        Pitcrew.ToPitCrewMessage.newBuilder()
+                            .setPitting(LemonPi.EnteringPits.newBuilder().build())
+                            .build()
+                    }
+                    is CarLeavingPitEvent -> {
+                        Pitcrew.ToPitCrewMessage.newBuilder()
+                            .setEntering(LemonPi.LeavingPits.newBuilder().build())
+                            .build()
+                    }
+                    is RaceStatusEvent -> {
+                        Pitcrew.ToPitCrewMessage.newBuilder()
+                            .setRaceStatus(LemonPi.RaceStatus.newBuilder()
+                                .setFlagStatus(CarDataService.convertStatus(e.flagStatus))
+                                .build())
+                            .build()
+                    }
+                    is SectorCompleteEvent -> {
+                        Pitcrew.ToPitCrewMessage.newBuilder()
+                            .setSectorDetails(LemonPi.SectorComplete.newBuilder()
+                                .setSectorTime(e.sectorTime)
+                                .setSectorName(e.sectorName)
+                                .setSectorNum(e.sectorNum)
+                                .setPredictedLapTime(e.predictedLapTime)
+                                .setPredictedDeltaToTarget(e.predictedDeltaToTarget)
+                                .setPredictedDeltaToBest(e.predictedDeltaToBest)
+                                .setLapCount(e.lapCount)
+                                .setBestSectorTime(e.bestSectorTime)
+                                .build())
+                            .build()
+                    }
+                    else -> null
+                }
+                message?.let { flow.tryEmit(it) }
+            }
+        }
+
+        val carFilter: (Event) -> Boolean = { e ->
+            when (e) {
+                is CarTelemetryEvent -> e.trackCode == trackCode && e.carNumber == carNumber
+                is LapCompletedEvent -> e.trackCode == trackCode && e.carNumber == carNumber
+                is DriverMessageEvent -> e.trackCode == trackCode && e.carNumber == carNumber
+                is CarPittingEvent -> e.trackCode == trackCode && e.carNumber == carNumber
+                is CarLeavingPitEvent -> e.trackCode == trackCode && e.carNumber == carNumber
+                is RaceStatusEvent -> e.trackCode == trackCode
+                is SectorCompleteEvent -> e.trackCode == trackCode && e.carNumber == carNumber
+                else -> false
+            }
+        }
+
+        Events.register(CarTelemetryEvent::class.java, handler, carFilter)
+        Events.register(LapCompletedEvent::class.java, handler, carFilter)
+        Events.register(DriverMessageEvent::class.java, handler, carFilter)
+        Events.register(CarPittingEvent::class.java, handler, carFilter)
+        Events.register(CarLeavingPitEvent::class.java, handler, carFilter)
+        Events.register(RaceStatusEvent::class.java, handler, carFilter)
+        Events.register(SectorCompleteEvent::class.java, handler, carFilter)
+
+        return flow
+    }
+
+    fun hasAudience(trackCode: String, carNumber: String): Boolean {
+        return pitcrewStreams.containsKey("$trackCode:$carNumber")
+    }
+
+    private fun buildPitCarData(carData: CarData.CarDataResponse): Pitcrew.PitCarData {
+        return Pitcrew.PitCarData.newBuilder()
+            .setCarNumber(carData.carNumber)
+            .setTimestamp(carData.timestamp)
+            .setFlagStatus(carData.flagStatus)
+            .setLapCount(carData.lapCount)
+            .setPosition(carData.position)
+            .setPositionInClass(carData.positionInClass)
+            .setLastLapTime(carData.lastLapTime)
+            .setGap(carData.gap)
+            .setCoolantTemp(carData.coolantTemp)
+            .setFuelRemainingPercent(carData.fuelRemainingPercent)
+            .setDriverMessage(carData.driverMessage)
+            .setCarAhead(carData.carAhead)
+            .setFastestLap(carData.fastestLap)
+            .setFastestLapTime(carData.fastestLapTime)
+            .putAllExtraSensors(carData.extraSensorsMap)
+            .build()
     }
 
     private suspend fun validateAccess(trackCode: String, carNumber: String) {

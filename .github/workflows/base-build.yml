@@ -53,3 +53,4 @@ jobs:
         with:
           name: bootJar
           path: build/libs/*.jar
+          retention-days: 1

@@ -2,10 +2,12 @@ package com.normtronix.meringue
 
 import com.google.protobuf.Empty
 import com.normtronix.meringue.racedata.DS1RaceLister
+import io.grpc.ManagedChannel
+import io.grpc.Server as GrpcServer
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
-import io.grpc.testing.GrpcCleanupRule
 import kotlinx.coroutines.*
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
@@ -49,6 +51,9 @@ internal class AdminIntegrationTest {
     @MockBean
     lateinit var mailService: MailService
 
+    @MockBean
+    lateinit var gpsStorageService: GpsStorage
+
     @Autowired
     lateinit var adminService: AdminService
 
@@ -58,52 +63,62 @@ internal class AdminIntegrationTest {
     @Autowired
     lateinit var carDataService: CarDataService
 
-    val grpcCleanup = GrpcCleanupRule()
+    private var grpcServer: GrpcServer? = null
+    private val channels = mutableListOf<ManagedChannel>()
     var asyncLemonPiStub: CommsServiceGrpc.CommsServiceStub? = null
+
+    @AfterEach
+    fun teardown() {
+        channels.forEach {
+            it.shutdownNow()
+            it.awaitTermination(5, TimeUnit.SECONDS)
+        }
+        channels.clear()
+        grpcServer?.shutdownNow()
+        grpcServer?.awaitTermination(5, TimeUnit.SECONDS)
+    }
+
+    private fun createChannel(serverName: String): ManagedChannel {
+        val channel = InProcessChannelBuilder.forName(serverName)
+            .build()
+        channels.add(channel)
+        return channel
+    }
 
     fun setupBlockingAdminStub() :  AdminServiceGrpc.AdminServiceBlockingStub {
         val serverName = InProcessServerBuilder.generateName()
         `when`(trackLoader.isValidTrackCode("thil")).thenReturn(true)
         `when`(adminService.authService.isTokenValid(anyString())).thenReturn(true)
 
-        grpcCleanup.register(
-            InProcessServerBuilder.forName(serverName)
-                .directExecutor()
-                .addService(adminService)
-                .build()).start()
+        grpcServer = InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .addService(adminService)
+            .build()
+        grpcServer!!.start()
 
-        return AdminServiceGrpc.newBlockingStub(
-            grpcCleanup.register(
-                InProcessChannelBuilder.forName(serverName).
-                    directExecutor().build()
-            )
-        ).withDeadlineAfter(1000, TimeUnit.MILLISECONDS)
+        return AdminServiceGrpc.newBlockingStub(createChannel(serverName))
+            .withDeadlineAfter(1000, TimeUnit.MILLISECONDS)
     }
 
     fun setupBlockingLemonPiStub() : Pair<CommsServiceGrpc.CommsServiceBlockingStub, String> {
         val serverName = InProcessServerBuilder.generateName()
         `when`(trackLoader.isValidTrackCode("thil")).thenReturn(true)
 
-        grpcCleanup.register(
-            InProcessServerBuilder.forName(serverName)
-                .directExecutor()
-                .intercept(ContextInterceptor(trackLoader))
-                .addService(lemonPiService)
-                .build()).start()
+        grpcServer = InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .intercept(ContextInterceptor(trackLoader))
+            .addService(lemonPiService)
+            .build()
+        grpcServer!!.start()
 
-        asyncLemonPiStub = CommsServiceGrpc.newStub(
-            grpcCleanup.register(
-                InProcessChannelBuilder.forName(serverName).
-                directExecutor().build()
-            )
-        ).withDeadlineAfter(1000, TimeUnit.MILLISECONDS)
+        asyncLemonPiStub = CommsServiceGrpc.newStub(createChannel(serverName))
+            .withDeadlineAfter(1000, TimeUnit.MILLISECONDS)
 
-        return Pair(CommsServiceGrpc.newBlockingStub(
-            grpcCleanup.register(
-                InProcessChannelBuilder.forName(serverName).
-                directExecutor().build()
-            )
-        ).withDeadlineAfter(1000, TimeUnit.MILLISECONDS), serverName)
+        return Pair(
+            CommsServiceGrpc.newBlockingStub(createChannel(serverName))
+                .withDeadlineAfter(1000, TimeUnit.MILLISECONDS),
+            serverName
+        )
     }
 
     @Test

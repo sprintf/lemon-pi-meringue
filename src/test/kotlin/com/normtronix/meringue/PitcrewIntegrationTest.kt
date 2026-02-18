@@ -86,7 +86,6 @@ internal class PitcrewIntegrationTest {
             .start()
 
         grpcChannel = InProcessChannelBuilder.forName(serverName)
-            .directExecutor()
             .build()
 
         return PitcrewServiceGrpc.newBlockingStub(grpcChannel)

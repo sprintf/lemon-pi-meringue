@@ -6,12 +6,10 @@ val ktorVersion: String by project
 
 
 plugins {
-	idea
-	application
-	id("org.springframework.boot") version "2.5.7"
-	id("io.spring.dependency-management") version "1.0.11.RELEASE"
-	kotlin("jvm")
-	kotlin("plugin.spring")
+	id("org.springframework.boot") version "3.2.0"
+	id("io.spring.dependency-management") version "1.1.4"
+	kotlin("jvm") version "1.9.21"
+	kotlin("plugin.spring") version "1.9.21"
 }
 
 group = "com.normtronix"
@@ -30,12 +28,12 @@ repositories {
 	}
 }
 
-extra["springCloudGcpVersion"] = "2.0.6"
-extra["springCloudVersion"] = "2020.0.4"
-extra["gcpLibrariesVersion"] = "26.17.0"
+extra["springCloudGcpVersion"] = "5.0.0"
+extra["springCloudVersion"] = "2023.0.0"
+extra["gcpLibrariesVersion"] = "26.32.0"
 
 dependencies {
-	implementation("com.normtronix:lemon-pi-protos:1.5")
+	implementation("com.normtronix:lemon-pi-protos:2.0")
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-security")
@@ -45,15 +43,16 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
-	implementation("net.devh:grpc-server-spring-boot-starter:2.13.0.RELEASE")
+	implementation("net.devh:grpc-server-spring-boot-starter:3.1.0.RELEASE")
 
-	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
 	implementation("com.google.protobuf:protobuf-java:${protobufVersion}")
 	implementation("io.grpc:grpc-protobuf:${grpcVersion}")
 	implementation("io.grpc:grpc-stub:${grpcVersion}")
-	implementation("io.grpc:grpc-kotlin-stub:0.1.5")
+	implementation("io.grpc:grpc-kotlin-stub:1.4.1")
 	implementation("com.google.cloud:google-cloud-firestore")
+	implementation("com.google.cloud:google-cloud-storage")
 	implementation("com.slack.api:slack-api-client:1.27.1")
 	implementation("com.auth0:java-jwt:4.4.0")
 	implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
@@ -68,7 +67,7 @@ dependencies {
 	implementation("org.yaml:snakeyaml:1.29")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("io.grpc:grpc-testing:${grpcVersion}")
-	testImplementation("net.devh:grpc-client-spring-boot-starter:2.13.0.RELEASE")
+	testImplementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE")
 	testImplementation("io.mockk:mockk:1.12.2")
 	testImplementation("io.ktor:ktor-client-mock:$ktorVersion")
 
@@ -81,6 +80,14 @@ dependencyManagement {
 		mavenBom("com.google.cloud:spring-cloud-gcp-dependencies:${property("springCloudGcpVersion")}")
 		mavenBom("com.google.cloud:libraries-bom:${property("gcpLibrariesVersion")}")
 		mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
+	}
+}
+
+configurations.all {
+	resolutionStrategy.eachDependency {
+		if (requested.group == "io.grpc" && requested.name != "grpc-kotlin-stub") {
+			useVersion(grpcVersion)
+		}
 	}
 }
 

@@ -41,7 +41,7 @@ jobs:
           push: true
           tags: us.gcr.io/meringue/meringue:${{ github.sha }}
           cache-from: type=gha,scope=meringue
-          cache-to: type=gha,mode=max,scope=meringue
+          cache-to: type=gha,mode=min,scope=meringue
 
 #      - name: Build and push envoy image
 #        uses: docker/build-push-action@v6

@@ -18,7 +18,7 @@ class MailService() {
     @Value("\${mailgun.apikey}")
     lateinit var apiKey: String
 
-    @Value("\${mailgun.domain:lemons-racer.com}")
+    @Value("\${mailgun.domain:citrus-racer.com}")
     lateinit var mailgunDomain: String
 
     internal var httpClient: HttpClient = HttpClient(CIO)
@@ -44,7 +44,7 @@ class MailService() {
                     addProperty("carNumber", carNumber)
                 }
                 setBody(FormDataContent(Parameters.build {
-                    append("from", "Lemons Racer <info@$mailgunDomain>")
+                    append("from", "Citrus Racer <info@$mailgunDomain>")
                     append("to", toEmail)
                     append("template", "welcome-pit")
                     append("h:X-Mailgun-Variables", mailgunVars.toString())

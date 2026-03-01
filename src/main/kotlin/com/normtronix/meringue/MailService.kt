@@ -44,7 +44,7 @@ class MailService() {
                     addProperty("carNumber", carNumber)
                 }
                 setBody(FormDataContent(Parameters.build {
-                    append("from", "Citrus Racer <info@$mailgunDomain>")
+                    // dont include the from as its in the template
                     append("to", toEmail)
                     append("template", "welcome-pit")
                     append("h:X-Mailgun-Variables", mailgunVars.toString())

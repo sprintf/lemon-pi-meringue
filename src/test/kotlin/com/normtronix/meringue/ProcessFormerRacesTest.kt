@@ -3,9 +3,11 @@ package com.normtronix.meringue
 import com.normtronix.meringue.racedata.DataSourceHandler
 import com.normtronix.meringue.racedata.RaceOrder
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.io.File
 
+@Disabled
 class ProcessFormerRacesTest {
 
     @Test

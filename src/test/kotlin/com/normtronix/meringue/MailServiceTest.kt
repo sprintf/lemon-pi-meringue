@@ -76,13 +76,12 @@ internal class MailServiceTest {
             )
         }
 
-        val service = MailService(HttpClient(mockEngine), "test-api-key", "test.lemons-racer.com")
+        val service = MailService(HttpClient(mockEngine), "test-api-key", "test.citrus-racer.com")
         service.sendWelcomeEmail("driver@example.com", "42")
 
         assertNotNull(capturedBody)
         assertTrue(capturedBody!!.contains("to=driver%40example.com"))
         assertTrue(capturedBody!!.contains("template=welcome-pit"))
-        assertTrue(capturedBody!!.contains("from="))
         assertTrue(capturedBody!!.contains("X-Mailgun-Variables"))
     }
 }

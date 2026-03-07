@@ -19,3 +19,4 @@ gradle-app.setting
 
 .env
 .claude
+do-not-checkin.properties

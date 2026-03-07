@@ -9,6 +9,8 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -111,8 +113,14 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         return BoolValue.of(result)
     }
 
+    // global sequence counter across all flows
+    private val globalSeq = AtomicInteger(0)
+
     // persistent flows keyed by "trackCode:carNumber", live until server restarts after race weekend
     internal val pitcrewStreams = mutableMapOf<String, MutableSharedFlow<Pitcrew.ToPitCrewMessage>>()
+
+    // message history per car for replay — capped at 1500 entries (~full weekend per car)
+    internal val pitcrewHistory = mutableMapOf<String, CopyOnWriteArrayList<Pitcrew.ToPitCrewMessage>>()
 
     override fun streamCarDataV2(request: Pitcrew.PitCarDataRequest): Flow<Pitcrew.ToPitCrewMessage> {
         validateAccessSync(request.trackCode, request.carNumber)
@@ -124,9 +132,18 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
             log.info("creating pitcrew stream for $carNumber at $trackCode")
             createPitcrewStream(trackCode, carNumber)
         }
+        val history = pitcrewHistory.getOrPut(key) { CopyOnWriteArrayList() }
 
         CarConnectedEvent(trackCode, carNumber).emitAsync()
-        return flow.asSharedFlow()
+
+        val sinceTimestamp = request.sinceTimestamp
+        val catchUp = history.filter { it.timestamp > sinceTimestamp }
+        log.info("replaying ${catchUp.size} messages for $carNumber at $trackCode (sinceTimestamp=$sinceTimestamp)")
+
+        return kotlinx.coroutines.flow.flow {
+            catchUp.forEach { emit(it) }
+            flow.asSharedFlow().collect { emit(it) }
+        }
     }
 
     private fun createPitcrewStream(
@@ -180,7 +197,16 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
                     }
                     else -> null
                 }
-                message?.let { flow.tryEmit(it) }
+                message?.let {
+                    val stamped = it.toBuilder()
+                        .setSeqNum(globalSeq.incrementAndGet())
+                        .setTimestamp(System.currentTimeMillis())
+                        .build()
+                    val history = pitcrewHistory.getOrPut("$trackCode:$carNumber") { CopyOnWriteArrayList() }
+                    history.add(stamped)
+                    if (history.size > 1500) history.removeAt(0)
+                    flow.tryEmit(stamped)
+                }
             }
         }
 

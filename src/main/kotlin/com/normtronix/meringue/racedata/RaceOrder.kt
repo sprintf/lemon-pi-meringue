@@ -83,8 +83,9 @@ class RaceOrder {
             it.lapsCompleted = lapCount
             // this is millis relative to start of race
             it.lastLapTimestamp = (timestamp * 1000).toLong()
-            // this is now
-            it.lastLapAbsTimestamp = Instant.now()
+            // use cumulative race time as the reference instant so gap calc works for both
+            // live races (gap = wall-clock diff between crossings) and log replay (gap = elapsed diff)
+            it.lastLapAbsTimestamp = Instant.EPOCH.plusMillis((timestamp * 1000).toLong())
 
             // if this is the leader crossing the line, then update some first place lap times
             if (position == 1) {

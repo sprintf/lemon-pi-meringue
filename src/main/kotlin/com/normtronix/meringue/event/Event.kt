@@ -286,3 +286,24 @@ class SendEmailAddressesToCarEvent(
         return "SendEmailAddressesToCarEvent : car=$carNumber ($trackCode) emails=${emailAddresses.size}"
     }
 }
+
+class CarAudioFromCarEvent(
+    val trackCode: String,
+    val carNumber: String,
+    val audioPacket: LemonPi.CarAudioMessage
+): Event() {
+
+    override fun toString(): String {
+        return "CarAudioFromCarEvent : $carNumber ($trackCode) seq=${audioPacket.audioSeqNum} last=${audioPacket.lastPacket}"
+    }
+}
+
+class VoiceCallRequestEvent(
+    val trackCode: String,
+    val carNumber: String
+): Event() {
+
+    override fun toString(): String {
+        return "VoiceCallRequestEvent : $carNumber ($trackCode)"
+    }
+}

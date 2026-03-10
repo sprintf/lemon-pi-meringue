@@ -1,17 +1,18 @@
 package com.normtronix.meringue
 
+import com.google.protobuf.ByteString
 import com.normtronix.meringue.ContextInterceptor.Companion.requestor
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class ServerChannelTest {
 
     @Test
-    fun testGettingMessagesFromCar(): Unit {
+    fun testGettingMessagesFromCar() {
         runBlocking {
             val s = Server()
             s.carStore = mockk()
@@ -113,6 +114,46 @@ internal class ServerChannelTest {
             assertEquals(2, collector.messages.size)
             assertEquals(1, collector.messages[0].message.seqNum)
             assertEquals(2, collector.messages[1].message.seqNum)
+        }
+    }
+
+    @Test
+    fun testSendAudioToCar() {
+        runBlocking {
+            val s = Server()
+            s.carStore = mockk()
+            s.deviceStore = mockk()
+            every { s.carStore.storeConnectedCarDetails(any()) } returns null
+            every { s.deviceStore.storeDeviceDetails(any(), any()) } returns Unit
+
+            val collector = CarMessageCollector(s, "99")
+            coroutineScope {
+                val j1 = launch(requestor.asContextElement(
+                    value = RequestDetails("thil", "99", "foo", "device1", ""))) {
+                    delay(50)
+                    val audioMsg = LemonPi.CarAudioMessage.newBuilder()
+                        .setCarNumber("99")
+                        .setTrackCode("thil")
+                        .setMessageStartTime(1000)
+                        .setAudioData(ByteString.copyFrom(byteArrayOf(0x1a, 0x45)))
+                        .setAudioSeqNum(0)
+                        .setLastPacket(false)
+                        .build()
+                    s.sendAudioToCar("thil", "99", audioMsg)
+                }
+                val j2 = launch(requestor.asContextElement(
+                    value = RequestDetails("thil", "99", "foo", "device1", ""))) {
+                    collector.getMessages()
+                }
+                launch {
+                    delay(200)
+                    j1.cancel()
+                    j2.cancel()
+                }
+            }
+            assertEquals(1, collector.messages.size)
+            assertTrue(collector.messages[0].hasAudioMessage())
+            assertEquals(0, collector.messages[0].audioMessage.audioSeqNum)
         }
     }
 

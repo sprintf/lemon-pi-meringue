@@ -1,8 +1,10 @@
 package com.normtronix.meringue
 
 import com.google.protobuf.BoolValue
+import com.google.protobuf.ByteString
 import com.google.protobuf.Empty
 import io.mockk.*
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -214,5 +216,96 @@ internal class PitcrewCommunicationsServiceTest {
         assertThrows<BadCredentialsException> {
             runBlocking { service.getCarStatus(Empty.getDefaultInstance()) }
         }
+    }
+
+    @Test
+    fun testTalkToCarSuccess() = runBlocking {
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
+        coEvery { server.sendAudioToCar("thil", "181", any()) } returns true
+
+        val packets = flowOf(
+            createVoicePacket("thil", "181", 0, false),
+            createVoicePacket("thil", "181", 1, false),
+            createVoicePacket("thil", "181", 2, true)
+        )
+
+        val result = service.talkToCar(packets)
+
+        assertEquals(BoolValue.of(true), result)
+        coVerify(exactly = 3) { server.sendAudioToCar("thil", "181", any()) }
+    }
+
+    @Test
+    fun testTalkToCarRejectsConcurrentSession() = runBlocking {
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
+        coEvery { server.sendAudioToCar("thil", "181", any()) } returns true
+
+        // Simulate an active session already in progress
+        service.activeVoiceSessions["thil:181"] = System.currentTimeMillis()
+
+        val packets = flowOf(createVoicePacket("thil", "181", 0, false))
+        val result = service.talkToCar(packets)
+
+        assertEquals(BoolValue.of(false), result)
+        coVerify(exactly = 0) { server.sendAudioToCar(any(), any(), any()) }
+        // session should not have been added (the pre-existing one remains)
+        assertTrue(service.activeVoiceSessions.containsKey("thil:181"))
+    }
+
+    @Test
+    fun testTalkToCarReleasesSessionOnLastPacket() = runBlocking {
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
+        coEvery { server.sendAudioToCar("thil", "181", any()) } returns true
+
+        val packets = flowOf(
+            createVoicePacket("thil", "181", 0, false),
+            createVoicePacket("thil", "181", 1, true)
+        )
+        service.talkToCar(packets)
+
+        assertFalse(service.activeVoiceSessions.containsKey("thil:181"))
+    }
+
+    @Test
+    fun testTalkToCarReleasesSessionOnAbnormalTermination() = runBlocking {
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
+        coEvery { server.sendAudioToCar("thil", "181", any()) } throws RuntimeException("connection dropped")
+
+        val packets = flowOf(createVoicePacket("thil", "181", 0, false))
+        assertThrows<RuntimeException> { runBlocking { service.talkToCar(packets) } }
+
+        assertFalse(service.activeVoiceSessions.containsKey("thil:181"))
+    }
+
+    @Test
+    fun testTalkToCarAccessDenied() {
+        pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
+        coEvery { deviceStore.getDeviceInfo("device1") } returns
+                DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
+
+        val packets = flowOf(createVoicePacket("thil", "999", 0, false))
+
+        assertThrows<AccessDeniedException> {
+            runBlocking { service.talkToCar(packets) }
+        }
+    }
+
+    private fun createVoicePacket(trackCode: String, carNumber: String, seqNum: Int, lastPacket: Boolean): Pitcrew.PitVoicePacket {
+        return Pitcrew.PitVoicePacket.newBuilder()
+            .setTrackCode(trackCode)
+            .setCarNumber(carNumber)
+            .setMessageStartTime(1000)
+            .setAudioData(ByteString.copyFrom(byteArrayOf(0x1a, 0x45)))
+            .setAudioSeqNum(seqNum)
+            .setLastPacket(lastPacket)
+            .build()
     }
 }

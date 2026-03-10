@@ -76,6 +76,16 @@ class ConnectedCarStore() {
 
     fun getTimeNow() = Timestamp.now()
 
+    fun refreshTtl(trackCode: String, carNumber: String) {
+        try {
+            val docRef = db.collection(ONLINE_CARS).document("$trackCode:$carNumber")
+            docRef.update(TTL, getTimeNow()).get(500, TimeUnit.MILLISECONDS)
+            log.debug("refreshed TTL for $carNumber at $trackCode")
+        } catch (e: Exception) {
+            log.error("failed to refresh TTL for $carNumber at $trackCode", e)
+        }
+    }
+
     data class CarConnectedStatus(
         val isOnline: Boolean,
         val ipAddress: String?,

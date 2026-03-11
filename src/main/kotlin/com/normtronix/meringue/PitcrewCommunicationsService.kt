@@ -284,6 +284,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
                             .setAudioData(e.audioPacket.audioData)
                             .setAudioSeqNum(e.audioPacket.audioSeqNum)
                             .setLastPacket(e.audioPacket.lastPacket)
+                            .setMimeType(e.audioPacket.mimeType)
                             .build()
                         Pitcrew.ToPitCrewMessage.newBuilder()
                             .setAudioPacket(pitVoicePacket)

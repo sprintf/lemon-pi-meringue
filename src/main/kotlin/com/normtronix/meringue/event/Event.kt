@@ -84,7 +84,7 @@ open class Event(val debounce: Boolean = false) {
             log.info("suppressing $this")
             return
         }
-        if (this !is GpsPositionEvent) {
+        if (this !is GpsPositionEvent && this !is CarAudioFromCarEvent) {
             log.info("emitting $this")
         }
         val event = this

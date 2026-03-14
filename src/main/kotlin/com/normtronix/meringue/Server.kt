@@ -1,7 +1,7 @@
 package com.normtronix.meringue
 
-import com.google.protobuf.BoolValue
-import com.google.protobuf.Empty
+import com.normtronix.meringue.Common.BoolValue
+import com.normtronix.meringue.Common.Empty
 import com.normtronix.meringue.ContextInterceptor.Companion.requestor
 import com.normtronix.meringue.event.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -100,7 +100,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     }
 
     internal suspend fun sendDriverMessage(trackCode: String, carNumber: String, message: String): Boolean {
-        val internalMessage = LemonPi.ToCarMessage.newBuilder().messageBuilder
+        val internalMessage = LemonPi.DriverMessage.newBuilder()
             .setCarNumber(carNumber)
             .setSender("meringue")
             .setText(message)
@@ -123,7 +123,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     }
 
     internal suspend fun resetFastLapTime(trackCode: String, carNumber: String): Boolean {
-        val resetMessage = LemonPi.ToCarMessage.newBuilder().resetFastLapBuilder
+        val resetMessage = LemonPi.ResetFastLap.newBuilder()
             .setCarNumber(carNumber)
             .setSender("meringue")
             .setSeqNum(seqNo++)
@@ -144,7 +144,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     }
 
     internal suspend fun setDriverName(trackCode: String, carNumber: String, driverName: String): Boolean {
-        val driverNameMsg = LemonPi.ToCarMessage.newBuilder().driverNameBuilder
+        val driverNameMsg = LemonPi.DriverName.newBuilder()
             .setCarNumber(carNumber)
             .setSender("meringue")
             .setDriverName(driverName)
@@ -166,7 +166,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     }
 
     internal suspend fun sendEmailAddresses(trackCode: String, carNumber: String, emailAddresses: List<String>): Boolean {
-        val response = LemonPi.ToCarMessage.newBuilder().emailAddressesBuilder
+        val response = LemonPi.TeamEmailAddresses.newBuilder()
             .setSender("meringue")
             .setSeqNum(seqNo++)
             .setTimestamp(Instant.now().epochSecond.toInt())
@@ -211,18 +211,18 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                 CarAudioFromCarEvent(trackCode, carNumber, packet).emit()
             }
             log.info("talkFromCar completed for $carNumber at $trackCode")
-            BoolValue.of(true)
+            BoolValue.newBuilder().setValue(true).build()
         } catch (e: java.util.concurrent.CancellationException) {
             log.info("talkFromCar ended by client for $carNumber at $trackCode")
-            BoolValue.of(true)
+            BoolValue.newBuilder().setValue(true).build()
         } catch (e: Exception) {
             log.error("talkFromCar error for $carNumber at $trackCode: ${e.message}", e)
-            BoolValue.of(false)
+            BoolValue.newBuilder().setValue(false).build()
         }
     }
 
     internal suspend fun setTargetLapTime(trackCode: String, carNumber: String, targetTimeSeconds: Int): Boolean {
-        val targetTime = LemonPi.ToCarMessage.newBuilder().setTargetBuilder
+        val targetTime = LemonPi.SetTargetTime.newBuilder()
             .setCarNumber(carNumber)
             .setTargetLapTime(targetTimeSeconds.toFloat())
             .setSender("meringue")
@@ -436,7 +436,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                 if (e.flagStatus.isEmpty()) {
                     return
                 }
-                val msg = LemonPi.ToCarMessage.newBuilder().raceStatusBuilder
+                val msg = LemonPi.RaceStatus.newBuilder()
                     .setSender("meringue")
                     .setTimestamp(Instant.now().epochSecond.toInt())
                     .setSeqNum(seqNo++)
@@ -456,7 +456,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
                     .setCarNumber(e.ahead ?: "")
                     .setGapText(e.gap)
                     .build()
-                val msg = LemonPi.ToCarMessage.newBuilder().racePositionBuilder
+                val msg = LemonPi.RacePosition.newBuilder()
                     .setSender("meringue")
                     .setTimestamp(Instant.now().epochSecond.toInt())
                     .setSeqNum(seqNo++)

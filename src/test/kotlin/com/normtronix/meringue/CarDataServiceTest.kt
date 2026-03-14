@@ -1,6 +1,6 @@
 package com.normtronix.meringue
 
-import com.google.protobuf.Empty
+import com.normtronix.meringue.Common.Empty
 import com.normtronix.meringue.event.CarTelemetryEvent
 import com.normtronix.meringue.event.DriverMessageEvent
 import com.normtronix.meringue.racedata.CarPosition

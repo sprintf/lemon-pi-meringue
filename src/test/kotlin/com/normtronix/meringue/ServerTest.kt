@@ -1,6 +1,6 @@
 package com.normtronix.meringue
 
-import com.google.protobuf.Empty
+import com.normtronix.meringue.Common.Empty
 import io.grpc.ManagedChannel
 import io.grpc.Server as GrpcServer
 import io.grpc.inprocess.InProcessChannelBuilder
@@ -130,7 +130,7 @@ internal class ServerTest {
     }
 
     internal fun createPingMessage(carNumber: String, seqNum: Int) : LemonPi.ToPitMessage {
-        val pingMessage = LemonPi.ToPitMessage.newBuilder().pingBuilder
+        val pingMessage = LemonPi.Ping.newBuilder()
             .setSender(carNumber)
             .setSeqNum(seqNum)
             .build()

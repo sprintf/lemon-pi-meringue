@@ -1,6 +1,6 @@
 package com.normtronix.meringue
 
-import com.google.protobuf.Empty
+import com.normtronix.meringue.Common.Empty
 import io.grpc.ManagedChannel
 import io.grpc.Metadata
 import io.grpc.Server as GrpcServer

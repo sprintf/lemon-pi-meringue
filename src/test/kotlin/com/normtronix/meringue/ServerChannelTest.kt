@@ -158,7 +158,7 @@ internal class ServerChannelTest {
     }
 
     internal fun createPittingMessage(carNumber: String, seqNum: Int) : LemonPi.ToPitMessage {
-        val pittingMessage = LemonPi.ToPitMessage.newBuilder().pittingBuilder
+        val pittingMessage = LemonPi.EnteringPits.newBuilder()
             .setSender(carNumber)
             .setSeqNum(seqNum)
             .build()
@@ -166,7 +166,7 @@ internal class ServerChannelTest {
     }
 
     internal fun createDriverMessage(carNumber: String, seqNum: Int) : LemonPi.ToCarMessage {
-        val driverMessage = LemonPi.ToCarMessage.newBuilder().messageBuilder
+        val driverMessage = LemonPi.DriverMessage.newBuilder()
             .setCarNumber(carNumber)
             .setSeqNum(seqNum)
             .setText("Hello")

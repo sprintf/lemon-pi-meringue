@@ -1,7 +1,7 @@
 package com.normtronix.meringue
 
-import com.google.protobuf.BoolValue
-import com.google.protobuf.Empty
+import com.normtronix.meringue.Common.BoolValue
+import com.normtronix.meringue.Common.Empty
 import com.normtronix.meringue.PitcrewContextInterceptor.Companion.pitcrewContext
 import com.normtronix.meringue.event.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -62,6 +62,36 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
             .build()
     }
 
+    override suspend fun carAuth(request: Pitcrew.CarAuthRequest): Pitcrew.CarAuthResponse {
+        val trackCode = request.trackCode
+        val carNumber = request.carNumber
+        val installCode = request.installCode
+        log.info("carAuth request: car=$carNumber track=$trackCode installCode=${installCode.take(8)}...")
+
+        val status = connectedCarStore.getStatus(trackCode, carNumber)
+        if (status == null || !status.isOnline) {
+            log.warn("carAuth failed: car $carNumber at $trackCode is not connected")
+            throw BadCredentialsException("car not connected: $trackCode/$carNumber")
+        }
+
+        val deviceId = status.deviceId
+            ?: throw BadCredentialsException("no device id for $trackCode/$carNumber")
+
+        if (deviceId != installCode) {
+            log.warn("carAuth failed: install code mismatch for $carNumber at $trackCode")
+            throw BadCredentialsException("invalid install code for $trackCode/$carNumber")
+        }
+
+        val deviceInfo = deviceStore.getDeviceInfo(deviceId)
+            ?: throw BadCredentialsException("device not found: $deviceId")
+
+        val token = JwtHelper.createToken(listOf(deviceId), deviceInfo.teamCode, "", jwtSecret)
+        log.info("carAuth successful for $carNumber at $trackCode")
+        return Pitcrew.CarAuthResponse.newBuilder()
+            .setBearerToken(token)
+            .build()
+    }
+
     override suspend fun getCarStatus(request: Empty): Pitcrew.PitCarStatusResponse {
         log.info("getting car status")
         val ctx = pitcrewContext.get()
@@ -93,25 +123,25 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
     override suspend fun sendDriverMessage(request: Pitcrew.PitDriverMessageRequest): BoolValue {
         validateAccess(request.trackCode, request.carNumber)
         val result = server.sendDriverMessage(request.trackCode, request.carNumber, request.message)
-        return BoolValue.of(result)
+        return BoolValue.newBuilder().setValue(result).build()
     }
 
     override suspend fun setTargetLapTime(request: Pitcrew.PitSetTargetLapTimeRequest): BoolValue {
         validateAccess(request.trackCode, request.carNumber)
         val result = server.setTargetLapTime(request.trackCode, request.carNumber, request.targetTimeSeconds)
-        return BoolValue.of(result)
+        return BoolValue.newBuilder().setValue(result).build()
     }
 
     override suspend fun resetFastLapTime(request: Pitcrew.PitResetFastLapTimeRequest): BoolValue {
         validateAccess(request.trackCode, request.carNumber)
         val result = server.resetFastLapTime(request.trackCode, request.carNumber)
-        return BoolValue.of(result)
+        return BoolValue.newBuilder().setValue(result).build()
     }
 
     override suspend fun setDriverName(request: Pitcrew.PitSetDriverNameRequest): BoolValue {
         validateAccess(request.trackCode, request.carNumber)
         val result = server.setDriverName(request.trackCode, request.carNumber, request.driverName)
-        return BoolValue.of(result)
+        return BoolValue.newBuilder().setValue(result).build()
     }
 
     // tracks which cars are currently receiving a voice stream; value is session start epoch ms
@@ -172,13 +202,13 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
             }
             } // end withTimeout
         } catch (e: VoiceSessionBusyException) {
-            return BoolValue.of(false)
+            return BoolValue.newBuilder().setValue(false).build()
         } catch (e: TimeoutCancellationException) {
             if (trackCode != null) {
                 log.warn("voice session timed out for $trackCode/$carNumber after 33s, releasing lock")
             } else {
                 log.debug("voice session timed out with no packets received (client opened stream but sent nothing)")
-                return BoolValue.of(false)
+                return BoolValue.newBuilder().setValue(false).build()
             }
         } finally {
             if (sessionAcquired) {
@@ -206,7 +236,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         if (trackCode != null) {
             log.info("voice stream completed for $trackCode/$carNumber packets=$packetCount")
         }
-        return BoolValue.of(true)
+        return BoolValue.newBuilder().setValue(true).build()
     }
 
     // persistent flows keyed by "trackCode:carNumber", live until server restarts after race weekend

@@ -1,7 +1,7 @@
 package com.normtronix.meringue
 
 import com.github.benmanes.caffeine.cache.Caffeine
-import com.google.protobuf.Empty
+import com.normtronix.meringue.Common.Empty
 import com.normtronix.meringue.event.*
 import com.normtronix.meringue.racedata.InvalidRaceId
 import com.normtronix.meringue.racedata.PositionEnum

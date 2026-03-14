@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component
 @Component
 class PitcrewSecurityInterceptor : ServerInterceptor {
 
-    private val unauthenticatedMethods = setOf("ping", "auth")
+    private val unauthenticatedMethods = PitcrewContextInterceptor.UNAUTHENTICATED_METHODS
 
     override fun <ReqT : Any?, RespT : Any?> interceptCall(
         call: ServerCall<ReqT, RespT>,

@@ -1,8 +1,8 @@
 package com.normtronix.meringue
 
-import com.google.protobuf.BoolValue
+import com.normtronix.meringue.Common.BoolValue
 import com.google.protobuf.ByteString
-import com.google.protobuf.Empty
+import com.normtronix.meringue.Common.Empty
 import io.mockk.*
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -125,7 +125,7 @@ internal class PitcrewCommunicationsServiceTest {
             .build()
 
         val result = service.sendDriverMessage(request)
-        assertEquals(BoolValue.of(true), result)
+        assertEquals(BoolValue.newBuilder().setValue(true).build(), result)
     }
 
     @Test
@@ -142,7 +142,7 @@ internal class PitcrewCommunicationsServiceTest {
             .build()
 
         val result = service.setDriverName(request)
-        assertEquals(BoolValue.of(true), result)
+        assertEquals(BoolValue.newBuilder().setValue(true).build(), result)
     }
 
     @Test
@@ -159,7 +159,7 @@ internal class PitcrewCommunicationsServiceTest {
             .build()
 
         val result = service.setTargetLapTime(request)
-        assertEquals(BoolValue.of(true), result)
+        assertEquals(BoolValue.newBuilder().setValue(true).build(), result)
     }
 
     @Test
@@ -175,7 +175,7 @@ internal class PitcrewCommunicationsServiceTest {
             .build()
 
         val result = service.resetFastLapTime(request)
-        assertEquals(BoolValue.of(true), result)
+        assertEquals(BoolValue.newBuilder().setValue(true).build(), result)
     }
 
     @Test
@@ -233,7 +233,7 @@ internal class PitcrewCommunicationsServiceTest {
 
         val result = service.talkToCar(packets)
 
-        assertEquals(BoolValue.of(true), result)
+        assertEquals(BoolValue.newBuilder().setValue(true).build(), result)
         coVerify(exactly = 3) { server.sendAudioToCar("thil", "181", any()) }
     }
 
@@ -250,7 +250,7 @@ internal class PitcrewCommunicationsServiceTest {
         val packets = flowOf(createVoicePacket("thil", "181", 0, false))
         val result = service.talkToCar(packets)
 
-        assertEquals(BoolValue.of(false), result)
+        assertEquals(BoolValue.newBuilder().setValue(false).build(), result)
         coVerify(exactly = 0) { server.sendAudioToCar(any(), any(), any()) }
         // session should not have been added (the pre-existing one remains)
         assertTrue(service.activeVoiceSessions.containsKey("thil:181"))

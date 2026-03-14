@@ -33,7 +33,7 @@ extra["springCloudVersion"] = "2023.0.0"
 extra["gcpLibrariesVersion"] = "26.32.0"
 
 dependencies {
-	implementation("com.normtronix:lemon-pi-protos:2.7")
+	implementation("com.normtronix:lemon-pi-protos:2.9")
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-security")
@@ -48,7 +48,8 @@ dependencies {
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
 	implementation("com.google.protobuf:protobuf-java:${protobufVersion}")
-	implementation("io.grpc:grpc-protobuf:${grpcVersion}")
+	implementation("com.google.protobuf:protobuf-javalite:${protobufVersion}")
+	implementation("io.grpc:grpc-protobuf-lite:${grpcVersion}")
 	implementation("io.grpc:grpc-stub:${grpcVersion}")
 	implementation("io.grpc:grpc-kotlin-stub:1.4.1")
 	implementation("com.google.cloud:google-cloud-firestore")

@@ -1,8 +1,8 @@
 package com.normtronix.meringue
 
-import com.google.protobuf.BoolValue
-import com.google.protobuf.Empty
-import com.google.protobuf.StringValue
+import com.normtronix.meringue.Common.BoolValue
+import com.normtronix.meringue.Common.Empty
+import com.normtronix.meringue.Common.StringValue
 import com.normtronix.meringue.MeringueAdmin.CarStatusSlackRequest
 import com.normtronix.meringue.event.RaceDisconnectEvent
 import com.normtronix.meringue.racedata.*
@@ -134,10 +134,10 @@ open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), In
     override suspend fun listTracks(request: Empty): MeringueAdmin.TrackMetadataResponse {
         val bldr = MeringueAdmin.TrackMetadataResponse.newBuilder()
         trackMetaData.listTracks().forEach {
-            bldr.addTrackBuilder()
+            bldr.addTrack(MeringueAdmin.TrackMetaData.newBuilder()
                 .setCode(it.code)
                 .setName(it.name)
-                .build()
+                .build())
         }
         return bldr.build()
     }
@@ -178,7 +178,7 @@ open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), In
         log.info("looking for connected car $request")
         val result = connectedCarStore.findTrack(request.carNumber, request.ipAddress, request.key)
         log.info("found car at track $result")
-        return StringValue.of(result?:"")
+        return StringValue.newBuilder().setValue(result?:"").build()
     }
 
     override suspend fun getCarStatus(request: CarStatusSlackRequest): MeringueAdmin.CarStatusResponse {
@@ -303,11 +303,11 @@ open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), In
     }
 
     override suspend fun resetFastLapTime(request: MeringueAdmin.ResetFastLapTimeRequest) : BoolValue {
-        return BoolValue.of(lemonPiService.resetFastLapTime(request.trackCode, request.carNumber))
+        return BoolValue.newBuilder().setValue(lemonPiService.resetFastLapTime(request.trackCode, request.carNumber)).build()
     }
 
     override suspend fun setTargetLapTime(request: MeringueAdmin.SetTargetLapTimeRequest) : BoolValue {
-        return BoolValue.of(lemonPiService.setTargetLapTime(request.trackCode, request.carNumber, request.targetTimeSeconds))
+        return BoolValue.newBuilder().setValue(lemonPiService.setTargetLapTime(request.trackCode, request.carNumber, request.targetTimeSeconds)).build()
     }
 
     private fun getConnectedCars(trackCode: String?): Set<String> {
@@ -325,12 +325,12 @@ open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), In
         // go through the list of connections, return status on each one
         val bldr = MeringueAdmin.RaceDataConnectionsResponse.newBuilder()
         activeMap.forEach {
-            bldr.addResponseBuilder().apply {
-                this.trackName = getTrackName(it.key.trackCode)
-                this.trackCode = it.key.trackCode
-                this.handle = it.key.toString()
-                this.running = it.value.isActive
-            }
+            bldr.addResponse(MeringueAdmin.RaceDataConnectionResponse.newBuilder()
+                .setTrackName(getTrackName(it.key.trackCode))
+                .setTrackCode(it.key.trackCode)
+                .setHandle(it.key.toString())
+                .setRunning(it.value.isActive)
+                .build())
         }
         return bldr.build()
     }
@@ -352,7 +352,7 @@ open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), In
     }
 
     override suspend fun sendDriverMessage(request: MeringueAdmin.DriverMessageRequest): BoolValue {
-        return BoolValue.of(lemonPiService.sendDriverMessage(request.trackCode, request.carNumber, request.message))
+        return BoolValue.newBuilder().setValue(lemonPiService.sendDriverMessage(request.trackCode, request.carNumber, request.message)).build()
     }
 
     @GrpcExceptionHandler(InvalidRaceId::class)

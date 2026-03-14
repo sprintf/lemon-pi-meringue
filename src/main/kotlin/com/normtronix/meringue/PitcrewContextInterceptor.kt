@@ -19,7 +19,7 @@ data class PitcrewContext(
 @Component
 class PitcrewContextInterceptor : CoroutineContextServerInterceptor() {
 
-    private val unauthenticatedMethods = setOf("ping", "auth")
+    private val unauthenticatedMethods = UNAUTHENTICATED_METHODS
 
     @Value("\${jwt.secret}")
     lateinit var jwtSecret: String
@@ -57,5 +57,6 @@ class PitcrewContextInterceptor : CoroutineContextServerInterceptor() {
     companion object {
         val pitcrewContext: ThreadLocal<PitcrewContext> = ThreadLocal()
         val log: Logger = LoggerFactory.getLogger(PitcrewSecurityInterceptor::class.java)
+        val UNAUTHENTICATED_METHODS = setOf("ping", "auth", "carAuth")
     }
 }

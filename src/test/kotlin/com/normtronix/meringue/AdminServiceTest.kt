@@ -1,6 +1,6 @@
 package com.normtronix.meringue
 
-import com.google.protobuf.Empty
+import com.normtronix.meringue.Common.Empty
 import com.normtronix.meringue.MeringueAdmin.CarAddViaSlackRequest
 import com.normtronix.meringue.MeringueAdmin.CarStatusSlackRequest
 import com.normtronix.meringue.racedata.DataSource1

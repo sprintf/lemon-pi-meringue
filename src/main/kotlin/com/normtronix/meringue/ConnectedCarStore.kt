@@ -48,7 +48,7 @@ class ConnectedCarStore() {
         var previousDeviceId: String? = null
         try {
             val docRef = db.collection(ONLINE_CARS).document("${request.trackCode}:${request.carNum}")
-            val existing = docRef.get().get(500, TimeUnit.MILLISECONDS)
+            val existing = docRef.get().get(10, TimeUnit.SECONDS)
 
             if (existing.exists()) {
                 val oldDeviceId = existing.getString(DEVICE_ID)
@@ -65,7 +65,7 @@ class ConnectedCarStore() {
                 IP to request.remoteIpAddr,
                 DEVICE_ID to request.deviceId,
                 TTL to getTimeNow()
-            ).toMap()).get(500, TimeUnit.MILLISECONDS)
+            ).toMap()).get(10, TimeUnit.SECONDS)
             log.info("stored car ${request.carNum} details in connected db ip=${request.remoteIpAddr}")
 
         } catch (e: Exception) {
@@ -79,7 +79,7 @@ class ConnectedCarStore() {
     fun refreshTtl(trackCode: String, carNumber: String) {
         try {
             val docRef = db.collection(ONLINE_CARS).document("$trackCode:$carNumber")
-            docRef.update(TTL, getTimeNow()).get(500, TimeUnit.MILLISECONDS)
+            docRef.update(TTL, getTimeNow()).get(10, TimeUnit.SECONDS)
             log.debug("refreshed TTL for $carNumber at $trackCode")
         } catch (e: Exception) {
             log.error("failed to refresh TTL for $carNumber at $trackCode", e)

@@ -72,7 +72,7 @@ dependencies {
 	testImplementation("io.mockk:mockk:1.12.2")
 	testImplementation("io.ktor:ktor-client-mock:$ktorVersion")
 
-	implementation("com.microsoft.playwright:playwright:1.47.0")
+	implementation("com.microsoft.playwright:playwright:1.58.0")
 
 }
 

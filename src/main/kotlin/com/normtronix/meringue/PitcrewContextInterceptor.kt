@@ -57,6 +57,6 @@ class PitcrewContextInterceptor : CoroutineContextServerInterceptor() {
     companion object {
         val pitcrewContext: ThreadLocal<PitcrewContext> = ThreadLocal()
         val log: Logger = LoggerFactory.getLogger(PitcrewSecurityInterceptor::class.java)
-        val UNAUTHENTICATED_METHODS = setOf("ping", "auth", "carAuth")
+        val UNAUTHENTICATED_METHODS = setOf("ping", "auth", "carAuth", "qrAuthAndReg")
     }
 }

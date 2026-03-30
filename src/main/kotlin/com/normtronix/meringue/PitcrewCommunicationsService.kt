@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.BadCredentialsException
+import org.springframework.security.authentication.CredentialsExpiredException
 
 @ExperimentalCoroutinesApi
 @GrpcService(interceptors = [PitcrewContextInterceptor::class, PitcrewSecurityInterceptor::class])
@@ -36,8 +37,16 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
     @Autowired
     lateinit var carDataService: CarDataService
 
+    @Autowired
+    lateinit var mailService: MailService
+
     @Value("\${jwt.secret}")
     lateinit var jwtSecret: String
+
+    companion object {
+        val log: Logger = LoggerFactory.getLogger(PitcrewCommunicationsService::class.java)
+        private const val QR_MAX_AGE_SECONDS = 3600L
+    }
 
     override suspend fun ping(request: Empty): Empty {
         return Empty.getDefaultInstance()
@@ -89,6 +98,49 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         log.info("carAuth successful for $carNumber at $trackCode")
         return Pitcrew.CarAuthResponse.newBuilder()
             .setBearerToken(token)
+            .build()
+    }
+
+    override suspend fun qrAuthAndReg(request: Pitcrew.QrAuthRequest): Pitcrew.QrAuthResponse {
+        val email = request.email.lowercase().trim()
+        val teamCode = request.teamCode
+        val deviceId = request.deviceId
+        val timestamp = request.timestamp
+
+        // Validate timestamp — reject QR codes older than 1 hour or more than 60s in the future
+        val ageSeconds = System.currentTimeMillis() / 1000 - timestamp
+        if (ageSeconds > QR_MAX_AGE_SECONDS || ageSeconds < -60) {
+            log.warn("qrAuthAndReg rejected: timestamp too old/future (age=${ageSeconds}s) device=$deviceId")
+            throw CredentialsExpiredException("QR code has expired")
+        }
+
+        // Look up device and validate teamCode
+        val deviceInfo = deviceStore.getDeviceInfo(deviceId)
+        if (deviceInfo == null) {
+            log.warn("qrAuthAndReg rejected: unknown device=$deviceId")
+            throw BadCredentialsException("device not found: $deviceId")
+        }
+        if (deviceInfo.teamCode != teamCode) {
+            log.warn("qrAuthAndReg rejected: teamCode mismatch for device=$deviceId")
+            throw BadCredentialsException("team code mismatch for device: $deviceId")
+        }
+
+        // Register email with device if not already there
+        val isNewEmail = deviceStore.addEmailAddress(deviceId, email)
+        if (isNewEmail) {
+            log.info("qrAuthAndReg: new email $email registered for device=$deviceId car=${deviceInfo.carNumber}")
+            mailService.sendWelcomeEmail(email, deviceInfo.carNumber)
+        }
+
+        // Build token covering all devices this email+teamCode is registered with
+        val deviceIds = deviceStore.findDevicesByEmailAndTeamCode(email, teamCode)
+        val token = JwtHelper.createToken(deviceIds, teamCode, email, jwtSecret)
+        log.info("qrAuthAndReg success: $email → car=${deviceInfo.carNumber} track=${deviceInfo.trackCode}")
+
+        return Pitcrew.QrAuthResponse.newBuilder()
+            .setBearerToken(token)
+            .setTrackCode(deviceInfo.trackCode)
+            .setCarNumber(deviceInfo.carNumber)
             .build()
     }
 
@@ -409,7 +461,4 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         }
     }
 
-    companion object {
-        val log: Logger = LoggerFactory.getLogger(PitcrewCommunicationsService::class.java)
-    }
 }

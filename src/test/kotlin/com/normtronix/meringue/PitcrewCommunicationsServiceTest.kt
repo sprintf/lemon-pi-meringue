@@ -10,6 +10,7 @@ import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.BadCredentialsException
+import org.springframework.security.authentication.CredentialsExpiredException
 
 internal class PitcrewCommunicationsServiceTest {
 
@@ -17,6 +18,7 @@ internal class PitcrewCommunicationsServiceTest {
     private lateinit var deviceStore: DeviceDataStore
     private lateinit var connectedCarStore: ConnectedCarStore
     private lateinit var server: Server
+    private lateinit var mailService: MailService
 
     private val pitcrewContext get() = PitcrewContextInterceptor.pitcrewContext
 
@@ -25,12 +27,14 @@ internal class PitcrewCommunicationsServiceTest {
         deviceStore = mockk()
         connectedCarStore = mockk()
         server = mockk()
+        mailService = mockk(relaxed = true)
 
         service = PitcrewCommunicationsService()
         service.deviceStore = deviceStore
         service.connectedCarStore = connectedCarStore
         service.server = server
         service.carDataService = mockk()
+        service.mailService = mailService
         service.jwtSecret = "test-secret"
 
         pitcrewContext.remove()
@@ -295,6 +299,131 @@ internal class PitcrewCommunicationsServiceTest {
 
         assertThrows<AccessDeniedException> {
             runBlocking { service.talkToCar(packets) }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // qrAuthAndReg
+    // -------------------------------------------------------------------------
+
+    private val nowTs get() = System.currentTimeMillis() / 1000
+    private val validDeviceInfo = DeviceDataStore.DeviceInfo("thil", "181", "12345", emptyList())
+
+    private fun qrRequest(
+        deviceId: String = "device-uuid",
+        teamCode: String = "12345",
+        email: String = "user@test.com",
+        ts: Long = nowTs
+    ) = Pitcrew.QrAuthRequest.newBuilder()
+        .setDeviceId(deviceId)
+        .setTeamCode(teamCode)
+        .setEmail(email)
+        .setTimestamp(ts)
+        .build()
+
+    @Test
+    fun `qrAuthAndReg happy path returns token and car info`() = runBlocking {
+        coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
+        coEvery { deviceStore.addEmailAddress("device-uuid", "user@test.com") } returns true
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "12345") } returns listOf("device-uuid")
+
+        val response = service.qrAuthAndReg(qrRequest())
+
+        assertTrue(response.bearerToken.isNotEmpty())
+        assertEquals("thil", response.trackCode)
+        assertEquals("181", response.carNumber)
+    }
+
+    @Test
+    fun `qrAuthAndReg sends welcome email for new email registration`() = runBlocking {
+        coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
+        coEvery { deviceStore.addEmailAddress("device-uuid", "user@test.com") } returns true
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "12345") } returns listOf("device-uuid")
+
+        service.qrAuthAndReg(qrRequest())
+
+        coVerify(exactly = 1) { mailService.sendWelcomeEmail("user@test.com", "181") }
+    }
+
+    @Test
+    fun `qrAuthAndReg does not send welcome email for already-registered email`() = runBlocking {
+        coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
+        coEvery { deviceStore.addEmailAddress("device-uuid", "user@test.com") } returns false
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "12345") } returns listOf("device-uuid")
+
+        service.qrAuthAndReg(qrRequest())
+
+        coVerify(exactly = 0) { mailService.sendWelcomeEmail(any(), any()) }
+    }
+
+    @Test
+    fun `qrAuthAndReg normalizes email to lowercase`() = runBlocking {
+        coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
+        coEvery { deviceStore.addEmailAddress("device-uuid", "user@test.com") } returns true
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "12345") } returns listOf("device-uuid")
+
+        service.qrAuthAndReg(qrRequest(email = "User@Test.COM"))
+
+        coVerify { deviceStore.addEmailAddress("device-uuid", "user@test.com") }
+    }
+
+    @Test
+    fun `qrAuthAndReg token contains correct device IDs`() = runBlocking {
+        coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
+        coEvery { deviceStore.addEmailAddress("device-uuid", "user@test.com") } returns false
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "12345") } returns
+            listOf("device-uuid", "device-uuid-2")
+
+        val response = service.qrAuthAndReg(qrRequest())
+
+        val claims = JwtHelper.decodeToken(response.bearerToken, "test-secret")
+        assertEquals(listOf("device-uuid", "device-uuid-2"), claims.deviceIds)
+        assertEquals("user@test.com", claims.email)
+        assertEquals("12345", claims.teamCode)
+    }
+
+    @Test
+    fun `qrAuthAndReg rejects expired timestamp`() {
+        assertThrows<CredentialsExpiredException> {
+            runBlocking { service.qrAuthAndReg(qrRequest(ts = nowTs - 3700L)) }
+        }
+        coVerify(exactly = 0) { deviceStore.getDeviceInfo(any()) }
+    }
+
+    @Test
+    fun `qrAuthAndReg rejects timestamp in future beyond tolerance`() {
+        assertThrows<CredentialsExpiredException> {
+            runBlocking { service.qrAuthAndReg(qrRequest(ts = nowTs + 120L)) }
+        }
+    }
+
+    @Test
+    fun `qrAuthAndReg accepts timestamp within future tolerance`() = runBlocking {
+        coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
+        coEvery { deviceStore.addEmailAddress("device-uuid", "user@test.com") } returns false
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "12345") } returns listOf("device-uuid")
+
+        // 30s in the future — within the 60s tolerance
+        val response = service.qrAuthAndReg(qrRequest(ts = nowTs + 30L))
+
+        assertTrue(response.bearerToken.isNotEmpty())
+    }
+
+    @Test
+    fun `qrAuthAndReg rejects unknown device`() {
+        coEvery { deviceStore.getDeviceInfo("device-uuid") } returns null
+
+        assertThrows<BadCredentialsException> {
+            runBlocking { service.qrAuthAndReg(qrRequest()) }
+        }
+    }
+
+    @Test
+    fun `qrAuthAndReg rejects mismatched team code`() {
+        coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
+
+        assertThrows<BadCredentialsException> {
+            runBlocking { service.qrAuthAndReg(qrRequest(teamCode = "99999")) }
         }
     }
 

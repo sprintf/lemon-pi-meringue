@@ -130,6 +130,8 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         if (isNewEmail) {
             log.info("qrAuthAndReg: new email $email registered for device=$deviceId car=${deviceInfo.carNumber}")
             mailService.sendWelcomeEmail(email, deviceInfo.carNumber)
+            val allEmails = deviceStore.getEmailAddresses(deviceId)
+            SendEmailAddressesToCarEvent(deviceInfo.trackCode, deviceInfo.carNumber, allEmails).emitAsync()
         }
 
         // Build token covering all devices this email+teamCode is registered with

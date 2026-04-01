@@ -3,7 +3,10 @@ package com.normtronix.meringue
 import com.normtronix.meringue.Common.BoolValue
 import com.google.protobuf.ByteString
 import com.normtronix.meringue.Common.Empty
+import com.normtronix.meringue.event.Events
+import com.normtronix.meringue.event.SendEmailAddressesToCarEvent
 import io.mockk.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.*
@@ -325,6 +328,7 @@ internal class PitcrewCommunicationsServiceTest {
     fun `qrAuthAndReg happy path returns token and car info`() = runBlocking {
         coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
         coEvery { deviceStore.addEmailAddress("device-uuid", "user@test.com") } returns true
+        coEvery { deviceStore.getEmailAddresses("device-uuid") } returns listOf("user@test.com")
         coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "12345") } returns listOf("device-uuid")
 
         val response = service.qrAuthAndReg(qrRequest())
@@ -338,11 +342,38 @@ internal class PitcrewCommunicationsServiceTest {
     fun `qrAuthAndReg sends welcome email for new email registration`() = runBlocking {
         coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
         coEvery { deviceStore.addEmailAddress("device-uuid", "user@test.com") } returns true
+        coEvery { deviceStore.getEmailAddresses("device-uuid") } returns listOf("user@test.com")
         coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "12345") } returns listOf("device-uuid")
 
         service.qrAuthAndReg(qrRequest())
 
         coVerify(exactly = 1) { mailService.sendWelcomeEmail("user@test.com", "181") }
+    }
+
+    @Test
+    fun `qrAuthAndReg pushes updated email list to car for new registration`() = runBlocking {
+        coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
+        coEvery { deviceStore.addEmailAddress("device-uuid", "user@test.com") } returns true
+        coEvery { deviceStore.getEmailAddresses("device-uuid") } returns listOf("other@test.com", "user@test.com")
+        coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "12345") } returns listOf("device-uuid")
+
+        val events = mutableListOf<SendEmailAddressesToCarEvent>()
+        val listener = object : com.normtronix.meringue.event.EventHandler {
+            override suspend fun handleEvent(e: com.normtronix.meringue.event.Event) {
+                if (e is SendEmailAddressesToCarEvent) events.add(e)
+            }
+        }
+        Events.register(SendEmailAddressesToCarEvent::class.java, listener)
+        try {
+            service.qrAuthAndReg(qrRequest())
+            delay(200) // allow async emit to propagate
+            assertEquals(1, events.size)
+            assertEquals("thil", events[0].trackCode)
+            assertEquals("181", events[0].carNumber)
+            assertEquals(listOf("other@test.com", "user@test.com"), events[0].emailAddresses)
+        } finally {
+            Events.unregister(listener)
+        }
     }
 
     @Test
@@ -360,6 +391,7 @@ internal class PitcrewCommunicationsServiceTest {
     fun `qrAuthAndReg normalizes email to lowercase`() = runBlocking {
         coEvery { deviceStore.getDeviceInfo("device-uuid") } returns validDeviceInfo
         coEvery { deviceStore.addEmailAddress("device-uuid", "user@test.com") } returns true
+        coEvery { deviceStore.getEmailAddresses("device-uuid") } returns listOf("user@test.com")
         coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "12345") } returns listOf("device-uuid")
 
         service.qrAuthAndReg(qrRequest(email = "User@Test.COM"))

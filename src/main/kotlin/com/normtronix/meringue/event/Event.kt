@@ -84,7 +84,7 @@ open class Event(val debounce: Boolean = false) {
             log.info("suppressing $this")
             return
         }
-        if (this !is GpsPositionEvent && this !is CarAudioFromCarEvent) {
+        if (this !is GpsPositionEvent) {
             log.info("emitting $this")
         }
         val event = this
@@ -284,17 +284,6 @@ class SendEmailAddressesToCarEvent(
 
     override fun toString(): String {
         return "SendEmailAddressesToCarEvent : car=$carNumber ($trackCode) emails=${emailAddresses.size}"
-    }
-}
-
-class CarAudioFromCarEvent(
-    val trackCode: String,
-    val carNumber: String,
-    val audioPacket: LemonPi.CarAudioMessage
-): Event() {
-
-    override fun toString(): String {
-        return "CarAudioFromCarEvent : $carNumber ($trackCode) seq=${audioPacket.audioSeqNum} last=${audioPacket.lastPacket}"
     }
 }
 

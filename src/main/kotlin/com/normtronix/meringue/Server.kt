@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import io.grpc.Status
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -186,39 +187,10 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         return false
     }
 
-    internal suspend fun sendAudioToCar(trackCode: String, carNumber: String, audioMsg: LemonPi.CarAudioMessage): Boolean {
-        val wrapper = LemonPi.ToCarMessage.newBuilder()
-            .setAudioMessage(audioMsg)
-            .build()
-        toCarIndex[trackCode]?.get(carNumber)?.radioKey?.apply {
-            val context = RequestDetails(trackCode, carNumber, this)
-            getSendChannel(context, toCarIndex).emit(wrapper)
-            return true
-        }
-        if (audioMsg.audioSeqNum == 0) {
-            log.warn("no connected car for $trackCode/$carNumber to receive audio")
-        }
-        return false
-    }
-
     override suspend fun talkFromCar(requests: Flow<LemonPi.CarAudioMessage>): BoolValue {
-        val requestDetails = requestor.get()
-        val trackCode = requestDetails.trackCode
-        val carNumber = requestDetails.carNum
-        log.info("talkFromCar starting for $carNumber at $trackCode")
-        return try {
-            requests.collect { packet ->
-                CarAudioFromCarEvent(trackCode, carNumber, packet).emit()
-            }
-            log.info("talkFromCar completed for $carNumber at $trackCode")
-            BoolValue.newBuilder().setValue(true).build()
-        } catch (e: java.util.concurrent.CancellationException) {
-            log.info("talkFromCar ended by client for $carNumber at $trackCode")
-            BoolValue.newBuilder().setValue(true).build()
-        } catch (e: Exception) {
-            log.error("talkFromCar error for $carNumber at $trackCode: ${e.message}", e)
-            BoolValue.newBuilder().setValue(false).build()
-        }
+        throw Status.UNIMPLEMENTED
+            .withDescription("audio comms replaced by LiveKit — use LiveKit directly")
+            .asException()
     }
 
     internal suspend fun setTargetLapTime(trackCode: String, carNumber: String, targetTimeSeconds: Int): Boolean {
@@ -498,8 +470,6 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
 }
 
 class MismatchedKeyException: Exception()
-
-class VoiceSessionBusyException(key: String): Exception("voice session busy: $key")
 
 class InvalidCarMessageException(message: String): Exception(message)
 

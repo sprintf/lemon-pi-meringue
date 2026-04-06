@@ -4,13 +4,13 @@ import com.normtronix.meringue.Common.BoolValue
 import com.normtronix.meringue.Common.Empty
 import com.normtronix.meringue.PitcrewContextInterceptor.Companion.pitcrewContext
 import com.normtronix.meringue.event.*
+import io.grpc.Status
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import java.util.concurrent.ConcurrentHashMap
 import net.devh.boot.grpc.server.service.GrpcService
 import org.slf4j.Logger
@@ -46,6 +46,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
     companion object {
         val log: Logger = LoggerFactory.getLogger(PitcrewCommunicationsService::class.java)
         private const val QR_MAX_AGE_SECONDS = 3600L
+        private const val MAX_HISTORY = 500
     }
 
     override suspend fun ping(request: Empty): Empty {
@@ -198,117 +199,56 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         return BoolValue.newBuilder().setValue(result).build()
     }
 
-    // tracks which cars are currently receiving a voice stream; value is session start epoch ms
-    internal val activeVoiceSessions = ConcurrentHashMap<String, Long>()
-    private val voiceSessionTimeoutMs = 35_000L  // stale lock expires after 35s (matches max conversation length)
-
     override suspend fun talkToCar(requests: Flow<Pitcrew.PitVoicePacket>): BoolValue {
-        var trackCode: String? = null
-        var carNumber: String? = null
-        var packetCount = 0
-        var sessionAcquired = false
-
-        try {
-            withTimeout(33_000L) {
-            requests.collect { packet ->
-                if (trackCode == null) {
-                    validateAccess(packet.trackCode, packet.carNumber)
-                    val key = "${packet.trackCode}:${packet.carNumber}"
-                    val now = System.currentTimeMillis()
-                    val existing = activeVoiceSessions[key]
-                    if (existing != null && now - existing < voiceSessionTimeoutMs) {
-                        log.warn("voice stream already active for ${packet.trackCode}/${packet.carNumber}, rejecting")
-                        throw VoiceSessionBusyException(key)
-                    }
-                    if (existing != null) {
-                        log.warn("overriding stale voice session lock for $key (age=${now - existing}ms)")
-                    }
-                    activeVoiceSessions[key] = now
-                    sessionAcquired = true
-                    trackCode = packet.trackCode
-                    carNumber = packet.carNumber
-                    log.info("voice stream starting for $trackCode/$carNumber")
-                }
-
-                if (packet.trackCode == trackCode && packet.carNumber == carNumber) {
-                    val audioMsg = LemonPi.CarAudioMessage.newBuilder()
-                        .setCarNumber(packet.carNumber)
-                        .setTrackCode(packet.trackCode)
-                        .setMessageStartTime(packet.messageStartTime)
-                        .setAudioData(packet.audioData)
-                        .setAudioSeqNum(packet.audioSeqNum)
-                        .setLastPacket(packet.lastPacket)
-                        .build()
-                    server.sendAudioToCar(trackCode!!, carNumber!!, audioMsg)
-                    // Echo to all other connected pit crew browsers via the shared SSE flow
-                    pitcrewStreams["$trackCode:$carNumber"]?.tryEmit(
-                        Pitcrew.ToPitCrewMessage.newBuilder()
-                            .setAudioPacket(packet)  // initiatorId already set on packet
-                            .build()
-                    )
-                    packetCount++
-                    if (packet.lastPacket) {
-                        activeVoiceSessions.remove("$trackCode:$carNumber")
-                        sessionAcquired = false
-                        log.info("voice stream last packet for $trackCode/$carNumber, lock released")
-                    }
-                }
-            }
-            } // end withTimeout
-        } catch (e: VoiceSessionBusyException) {
-            return BoolValue.newBuilder().setValue(false).build()
-        } catch (e: TimeoutCancellationException) {
-            if (trackCode != null) {
-                log.warn("voice session timed out for $trackCode/$carNumber after 33s, releasing lock")
-            } else {
-                log.debug("voice session timed out with no packets received (client opened stream but sent nothing)")
-                return BoolValue.newBuilder().setValue(false).build()
-            }
-        } finally {
-            if (sessionAcquired) {
-                activeVoiceSessions.remove("$trackCode:$carNumber")
-                log.info("voice session lock released for $trackCode/$carNumber (packets=$packetCount)")
-                // Signal the car that the pit mic dropped — send a synthetic end-of-audio packet
-                // so the car-side CarVoiceSender stops and incomingAudioFlow resets
-                val tc = trackCode
-                val cn = carNumber
-                if (tc != null && cn != null) {
-                    pitcrewStreams["$tc:$cn"]?.tryEmit(
-                        Pitcrew.ToPitCrewMessage.newBuilder()
-                            .setAudioPacket(Pitcrew.PitVoicePacket.newBuilder()
-                                .setTrackCode(tc)
-                                .setCarNumber(cn)
-                                .setLastPacket(true)
-                                .setAudioSeqNum(packetCount)
-                                .build())
-                            .build()
-                    )
-                }
-            }
-        }
-
-        if (trackCode != null) {
-            log.info("voice stream completed for $trackCode/$carNumber packets=$packetCount")
-        }
-        return BoolValue.newBuilder().setValue(true).build()
+        throw Status.UNIMPLEMENTED
+            .withDescription("audio comms replaced by LiveKit — use LiveKit directly")
+            .asException()
     }
 
     // persistent flows keyed by "trackCode:carNumber", live until server restarts after race weekend
     internal val pitcrewStreams = mutableMapOf<String, MutableSharedFlow<Pitcrew.ToPitCrewMessage>>()
+
+    // rolling history of the last MAX_HISTORY messages per car, used to replay to late-joining clients
+    internal val messageHistory = ConcurrentHashMap<String, ArrayDeque<Pitcrew.ToPitCrewMessage>>()
+
+    private fun emitToStream(key: String, message: Pitcrew.ToPitCrewMessage) {
+        // Stamp with wall-clock time if the builder didn't already set it
+        val stamped = if (message.timestamp == 0L)
+            message.toBuilder().setTimestamp(System.currentTimeMillis()).build()
+        else message
+        pitcrewStreams[key]?.tryEmit(stamped)
+        val hist = messageHistory.getOrPut(key) { ArrayDeque() }
+        synchronized(hist) {
+            hist.addLast(stamped)
+            while (hist.size > MAX_HISTORY) hist.removeFirst()
+        }
+    }
 
     override fun streamCarDataV2(request: Pitcrew.PitCarDataRequest): Flow<Pitcrew.ToPitCrewMessage> {
         validateAccessSync(request.trackCode, request.carNumber)
         val trackCode = request.trackCode
         val carNumber = request.carNumber
         val key = "$trackCode:$carNumber"
+        val since = request.sinceTimestamp
 
-        val flow = pitcrewStreams.getOrPut(key) {
+        val liveFlow = pitcrewStreams.getOrPut(key) {
             log.info("creating pitcrew stream for $carNumber at $trackCode")
             createPitcrewStream(trackCode, carNumber)
         }
 
+        val snapshot = messageHistory[key]?.let { hist ->
+            synchronized(hist) {
+                hist.filter { since == 0L || it.timestamp > since }.toList()
+            }
+        } ?: emptyList()
+
+        log.info("streaming $carNumber at $trackCode — replaying ${snapshot.size} historical messages (since=$since)")
         CarConnectedEvent(trackCode, carNumber).emitAsync()
-        return flow.asSharedFlow()
+
+        return flow {
+            snapshot.forEach { emit(it) }
+            emitAll(liveFlow)
+        }
     }
 
     private fun createPitcrewStream(
@@ -360,20 +300,6 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
                                 .build())
                             .build()
                     }
-                    is CarAudioFromCarEvent -> {
-                        val pitVoicePacket = Pitcrew.PitVoicePacket.newBuilder()
-                            .setCarNumber(e.audioPacket.carNumber)
-                            .setTrackCode(e.audioPacket.trackCode)
-                            .setMessageStartTime(e.audioPacket.messageStartTime)
-                            .setAudioData(e.audioPacket.audioData)
-                            .setAudioSeqNum(e.audioPacket.audioSeqNum)
-                            .setLastPacket(e.audioPacket.lastPacket)
-                            .setMimeType(e.audioPacket.mimeType)
-                            .build()
-                        Pitcrew.ToPitCrewMessage.newBuilder()
-                            .setAudioPacket(pitVoicePacket)
-                            .build()
-                    }
                     is VoiceCallRequestEvent -> {
                         Pitcrew.ToPitCrewMessage.newBuilder()
                             .setCallRequest(Pitcrew.CarVoiceCallRequest.newBuilder()
@@ -385,7 +311,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
                     }
                     else -> null
                 }
-                message?.let { flow.tryEmit(it) }
+                message?.let { emitToStream("$trackCode:$carNumber", it) }
             }
         }
 
@@ -398,7 +324,6 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
                 is CarLeavingPitEvent -> e.trackCode == trackCode && e.carNumber == carNumber
                 is RaceStatusEvent -> e.trackCode == trackCode
                 is SectorCompleteEvent -> e.trackCode == trackCode && e.carNumber == carNumber
-                is CarAudioFromCarEvent -> e.trackCode == trackCode && e.carNumber == carNumber
                 is VoiceCallRequestEvent -> e.trackCode == trackCode && e.carNumber == carNumber
                 else -> false
             }
@@ -411,7 +336,6 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         Events.register(CarLeavingPitEvent::class.java, handler, carFilter)
         Events.register(RaceStatusEvent::class.java, handler, carFilter)
         Events.register(SectorCompleteEvent::class.java, handler, carFilter)
-        Events.register(CarAudioFromCarEvent::class.java, handler, carFilter)
         Events.register(VoiceCallRequestEvent::class.java, handler, carFilter)
 
         return flow

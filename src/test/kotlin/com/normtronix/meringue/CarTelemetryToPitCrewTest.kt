@@ -2,9 +2,12 @@ package com.normtronix.meringue
 
 import com.normtronix.meringue.ContextInterceptor.Companion.requestor
 import com.normtronix.meringue.event.Events
+import com.normtronix.meringue.event.LapCompletedEvent
 import com.normtronix.meringue.racedata.CarPosition
+import com.normtronix.meringue.racedata.LapEntry
 import com.normtronix.meringue.racedata.RaceOrder
 import com.normtronix.meringue.racedata.RaceView
+import java.time.Instant
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
@@ -362,6 +365,50 @@ internal class CarTelemetryToPitCrewTest {
 
         assertTrue(pitcrewService.hasAudience("test1", "833"))
         assertFalse(pitcrewService.hasAudience("test1", "999"))
+    }
+
+    @Test
+    fun `following car crossing line triggers carBehind update in stream`() {
+        val car833 = RaceOrder.Car("833", "", "").apply { lastLapTime = 92.0 }
+        val car834 = RaceOrder.Car("834", "", "").apply {
+            lastLapTime = 95.0
+            lapHistory.addLast(LapEntry(95.5, Instant.now()))
+            lapHistory.addLast(LapEntry(95.0, Instant.now()))
+            lapHistory.addLast(LapEntry(94.5, Instant.now()))
+        }
+
+        // First race view: 833 has no car behind yet (834 hasn't crossed)
+        val pos833First = CarPosition("833", "", car833).apply { position = 5 }
+        val viewWithoutBehind = RaceView("green", mapOf("833" to pos833First))
+
+        // Second race view: 834 has crossed, now sits behind 833
+        val pos833Second = CarPosition("833", "", car833).apply { position = 5 }
+        val pos834 = CarPosition("834", "", car834).apply { position = 6 }
+        pos833Second.carBehind = pos834
+        val viewWithBehind = RaceView("green", mapOf("833" to pos833Second, "834" to pos834))
+
+        every { carDataService.adminService.getRaceView("test1") } returnsMany listOf(
+            viewWithoutBehind,
+            viewWithBehind
+        )
+        setPitcrewAuth()
+
+        val results = mutableListOf<Pitcrew.ToPitCrewMessage>()
+        streamAndCollect(results, timeoutMs = 600) {
+            // Car 833 crosses the line — 834 hasn't crossed yet so carBehind is empty
+            LapCompletedEvent("test1", "833", 10, 5, 5, null, "-", 0.0, 0.0, 92.0, "green").emit()
+            delay(100)
+            // Car 834 crosses the line — its carAhead is 833, triggering a push for 833's stream
+            LapCompletedEvent("test1", "834", 10, 6, 6, "833", "8s", 8.0, 0.0, 95.0, "green").emit()
+            delay(100)
+        }
+
+        assertEquals(2, results.size)
+        assertTrue(results[0].hasCarData())
+        assertEquals("", results[0].carData.carBehind)
+        assertTrue(results[1].hasCarData())
+        assertEquals("834", results[1].carData.carBehind)
+        assertTrue(results[1].carData.carBehindAvgLapTime > 0f)
     }
 
     private fun createPingMessage(seqNum: Int): LemonPi.ToPitMessage {

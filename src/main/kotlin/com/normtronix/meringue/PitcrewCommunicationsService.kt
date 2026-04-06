@@ -199,11 +199,6 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         return BoolValue.newBuilder().setValue(result).build()
     }
 
-    override suspend fun talkToCar(requests: Flow<Pitcrew.PitVoicePacket>): BoolValue {
-        throw Status.UNIMPLEMENTED
-            .withDescription("audio comms replaced by LiveKit — use LiveKit directly")
-            .asException()
-    }
 
     // persistent flows keyed by "trackCode:carNumber", live until server restarts after race weekend
     internal val pitcrewStreams = mutableMapOf<String, MutableSharedFlow<Pitcrew.ToPitCrewMessage>>()
@@ -318,7 +313,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         val carFilter: (Event) -> Boolean = { e ->
             when (e) {
                 is CarTelemetryEvent -> e.trackCode == trackCode && e.carNumber == carNumber
-                is LapCompletedEvent -> e.trackCode == trackCode && e.carNumber == carNumber
+                is LapCompletedEvent -> e.trackCode == trackCode && (e.carNumber == carNumber || e.ahead == carNumber)
                 is DriverMessageEvent -> e.trackCode == trackCode && e.carNumber == carNumber
                 is CarPittingEvent -> e.trackCode == trackCode && e.carNumber == carNumber
                 is CarLeavingPitEvent -> e.trackCode == trackCode && e.carNumber == carNumber
@@ -359,8 +354,12 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
             .setFuelRemainingPercent(carData.fuelRemainingPercent)
             .setDriverMessage(carData.driverMessage)
             .setCarAhead(carData.carAhead)
+            .setCarBehind(carData.carBehind)
             .setFastestLap(carData.fastestLap)
             .setFastestLapTime(carData.fastestLapTime)
+            .setAvgLapTime(carData.avgLapTime)
+            .setCarAheadAvgLapTime(carData.carAheadAvgLapTime)
+            .setCarBehindAvgLapTime(carData.carBehindAvgLapTime)
             .putAllExtraSensors(carData.extraSensorsMap)
             .build()
     }

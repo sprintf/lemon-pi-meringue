@@ -1,13 +1,11 @@
 package com.normtronix.meringue
 
 import com.normtronix.meringue.Common.BoolValue
-import com.google.protobuf.ByteString
 import com.normtronix.meringue.Common.Empty
 import com.normtronix.meringue.event.Events
 import com.normtronix.meringue.event.SendEmailAddressesToCarEvent
 import io.mockk.*
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -225,14 +223,6 @@ internal class PitcrewCommunicationsServiceTest {
         }
     }
 
-    @Test
-    fun testTalkToCarThrowsUnimplemented() {
-        val packets = flowOf(createVoicePacket("thil", "181", 0, false))
-        assertThrows<io.grpc.StatusException> {
-            runBlocking { service.talkToCar(packets) }
-        }
-    }
-
     // -------------------------------------------------------------------------
     // qrAuthAndReg
     // -------------------------------------------------------------------------
@@ -387,14 +377,4 @@ internal class PitcrewCommunicationsServiceTest {
         }
     }
 
-    private fun createVoicePacket(trackCode: String, carNumber: String, seqNum: Int, lastPacket: Boolean): Pitcrew.PitVoicePacket {
-        return Pitcrew.PitVoicePacket.newBuilder()
-            .setTrackCode(trackCode)
-            .setCarNumber(carNumber)
-            .setMessageStartTime(1000)
-            .setAudioData(ByteString.copyFrom(byteArrayOf(0x1a, 0x45)))
-            .setAudioSeqNum(seqNum)
-            .setLastPacket(lastPacket)
-            .build()
-    }
 }

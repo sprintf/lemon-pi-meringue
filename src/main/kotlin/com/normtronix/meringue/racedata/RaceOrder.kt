@@ -7,6 +7,8 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.stream.Collectors
 
+data class LapEntry(val lapTimeSecs: Double, val timestamp: Instant)
+
 /**
  * An ordering of the current field in the race
  */
@@ -36,6 +38,24 @@ class RaceOrder {
         var gapToFront: Double = 0.0
         // the delta between this car and the leader, on this lap versus the previous one
         var gapToFrontDelta: Double = 0.0
+        // rolling lap history, capped at MAX_LAP_HISTORY entries
+        val lapHistory: ArrayDeque<LapEntry> = ArrayDeque()
+
+        /**
+         * Returns the average of up to the last 3 lap times, excluding:
+         *  - laps older than 30 minutes (car was probably parked/pitted for a long time)
+         *  - laps longer than lastLapTime + 3 minutes (almost certainly a pit stop lap)
+         */
+        fun recentAvgLapTime(): Double {
+            val cutoff = Instant.now().minusSeconds(1800)
+            val maxLapSecs = if (lastLapTime > 0) lastLapTime + 180.0 else Double.MAX_VALUE
+            val recent = synchronized(lapHistory) {
+                lapHistory
+                    .filter { it.timestamp.isAfter(cutoff) && it.lapTimeSecs <= maxLapSecs }
+                    .takeLast(3)
+            }
+            return if (recent.isEmpty()) 0.0 else recent.sumOf { it.lapTimeSecs } / recent.size
+        }
 
         override fun compareTo(other: Car): Int {
             val lapDiff = other.lapsCompleted - this.lapsCompleted
@@ -116,6 +136,10 @@ class RaceOrder {
         }
         numberLookup[carNumber]?.let {
             it.lastLapTime = lapTimeSeconds
+            synchronized(it.lapHistory) {
+                it.lapHistory.addLast(LapEntry(lapTimeSeconds, Instant.now()))
+                while (it.lapHistory.size > MAX_LAP_HISTORY) it.lapHistory.removeFirst()
+            }
         }
     }
 
@@ -148,6 +172,7 @@ class RaceOrder {
 
     companion object {
         val log: Logger = LoggerFactory.getLogger(RaceOrder::class.java)
+        const val MAX_LAP_HISTORY = 10
     }
 }
 
@@ -238,6 +263,7 @@ class RaceView internal constructor(val raceStatus: String, private val raceOrde
                     car.positionInClass = it
                 }
                 car.carAhead = prev
+                prev?.carBehind = car
             }
             return RaceView(race.raceStatus, raceOrder.map { it.carNumber to it }.toMap())
         }
@@ -250,6 +276,7 @@ class CarPosition(val carNumber: String, val classId: String, internal val origi
     internal var position:Int = 0
     internal var positionInClass: Int = 0
     internal var carAhead: CarPosition? = null
+    internal var carBehind: CarPosition? = null
     // we copy these over from the origin to prevent us picking up changing data
     internal val lapsCompleted = origin.lapsCompleted
     internal val lastLapTime = origin.lastLapTime

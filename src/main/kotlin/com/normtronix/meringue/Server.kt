@@ -187,11 +187,6 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         return false
     }
 
-    override suspend fun talkFromCar(requests: Flow<LemonPi.CarAudioMessage>): BoolValue {
-        throw Status.UNIMPLEMENTED
-            .withDescription("audio comms replaced by LiveKit — use LiveKit directly")
-            .asException()
-    }
 
     internal suspend fun setTargetLapTime(trackCode: String, carNumber: String, targetTimeSeconds: Int): Boolean {
         val targetTime = LemonPi.SetTargetTime.newBuilder()

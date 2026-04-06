@@ -91,7 +91,8 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
 
         val carInRace = view?.lookupCar(carNumber)
         if (carInRace != null) {
-            val carAhead = carInRace.getCarAhead(PositionEnum.IN_CLASS) ?: carInRace.getCarAhead(PositionEnum.OVERALL)
+            val carAhead = carInRace.getCarAhead(PositionEnum.OVERALL)
+            val carBehind = carInRace.carBehind
             bldr.apply {
                 this.flagStatus = convertStatus(view.raceStatus)
                 this.lapCount = carInRace.lapsCompleted
@@ -101,12 +102,18 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
                 this.gap = carInRace.gap(carAhead)
                 this.fastestLap = carInRace.fastestLap
                 this.fastestLapTime = carInRace.fastestLapTime.toFloat()
+                this.avgLapTime = carInRace.origin.recentAvgLapTime().toFloat()
                 carInRace.lastLapAbsTimestamp?.let { ts ->
                     this.timestamp = ts.toEpochMilli()
                 }
             }
             carAhead?.let { ahead ->
                 bldr.carAhead = ahead.carNumber
+                bldr.carAheadAvgLapTime = ahead.origin.recentAvgLapTime().toFloat()
+            }
+            carBehind?.let { behind ->
+                bldr.carBehind = behind.carNumber
+                bldr.carBehindAvgLapTime = behind.origin.recentAvgLapTime().toFloat()
             }
         }
 

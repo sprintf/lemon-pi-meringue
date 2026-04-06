@@ -2,6 +2,7 @@ package com.normtronix.meringue.racedata
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import java.time.Instant
 import java.util.stream.Collectors
 
 internal class RaceOrderTest {
@@ -250,6 +251,102 @@ internal class RaceOrderTest {
         )
         val result = cars.stream().sorted().collect(Collectors.toList())
         assertEquals("181", result[0].carNumber)
+    }
+
+    @Test
+    fun testAvgLapTimeNoHistory() {
+        val car = RaceOrder.Car("181", "", "")
+        assertEquals(0.0, car.recentAvgLapTime())
+    }
+
+    @Test
+    fun testAvgLapTimeFewerThanThreeLaps() {
+        val car = RaceOrder.Car("181", "", "").apply { lastLapTime = 90.0 }
+        car.lapHistory.addLast(LapEntry(91.0, Instant.now()))
+        car.lapHistory.addLast(LapEntry(89.0, Instant.now()))
+        assertEquals(90.0, car.recentAvgLapTime(), 0.001)
+    }
+
+    @Test
+    fun testAvgLapTimeUsesLastThreeLaps() {
+        val car = RaceOrder.Car("181", "", "").apply { lastLapTime = 90.0 }
+        // 5 laps — only the last 3 should be averaged
+        car.lapHistory.addLast(LapEntry(100.0, Instant.now()))
+        car.lapHistory.addLast(LapEntry(100.0, Instant.now()))
+        car.lapHistory.addLast(LapEntry(90.0, Instant.now()))
+        car.lapHistory.addLast(LapEntry(90.0, Instant.now()))
+        car.lapHistory.addLast(LapEntry(90.0, Instant.now()))
+        assertEquals(90.0, car.recentAvgLapTime(), 0.001)
+    }
+
+    @Test
+    fun testAvgLapTimeIgnoresOldLaps() {
+        val car = RaceOrder.Car("181", "", "").apply { lastLapTime = 90.0 }
+        val oldTimestamp = Instant.now().minusSeconds(2000)
+        car.lapHistory.addLast(LapEntry(85.0, oldTimestamp))
+        car.lapHistory.addLast(LapEntry(86.0, oldTimestamp))
+        car.lapHistory.addLast(LapEntry(91.0, Instant.now()))
+        car.lapHistory.addLast(LapEntry(89.0, Instant.now()))
+        // Only the two recent laps should count
+        assertEquals(90.0, car.recentAvgLapTime(), 0.001)
+    }
+
+    @Test
+    fun testAvgLapTimeIgnoresPitStopLaps() {
+        val car = RaceOrder.Car("181", "", "").apply { lastLapTime = 90.0 }
+        val pitStopLap = 90.0 + 180.0 + 1.0  // lastLapTime + 3min + 1s
+        car.lapHistory.addLast(LapEntry(pitStopLap, Instant.now()))
+        car.lapHistory.addLast(LapEntry(91.0, Instant.now()))
+        car.lapHistory.addLast(LapEntry(89.0, Instant.now()))
+        // Pit stop lap excluded — avg of remaining two
+        assertEquals(90.0, car.recentAvgLapTime(), 0.001)
+    }
+
+    @Test
+    fun testAvgLapTimeAllLapsOldReturnsZero() {
+        val car = RaceOrder.Car("181", "", "").apply { lastLapTime = 90.0 }
+        val oldTimestamp = Instant.now().minusSeconds(2000)
+        car.lapHistory.addLast(LapEntry(90.0, oldTimestamp))
+        car.lapHistory.addLast(LapEntry(91.0, oldTimestamp))
+        assertEquals(0.0, car.recentAvgLapTime())
+    }
+
+    @Test
+    fun testUpdateLastLapAccumulatesHistory() {
+        val race = RaceOrder()
+        race.addCar("181", "")
+        race.updateLastLap("181", 90.0)
+        race.updateLastLap("181", 91.0)
+        race.updateLastLap("181", 92.0)
+        val car = race.numberLookup["181"]!!
+        assertEquals(3, car.lapHistory.size)
+        assertEquals(90.0, car.lapHistory[0].lapTimeSecs)
+        assertEquals(92.0, car.lapHistory[2].lapTimeSecs)
+    }
+
+    @Test
+    fun testUpdateLastLapCapsHistoryAtMax() {
+        val race = RaceOrder()
+        race.addCar("181", "")
+        repeat(RaceOrder.MAX_LAP_HISTORY + 5) { i ->
+            race.updateLastLap("181", 90.0 + i)
+        }
+        assertEquals(RaceOrder.MAX_LAP_HISTORY, race.numberLookup["181"]!!.lapHistory.size)
+    }
+
+    @Test
+    fun testCarBehindSetInRaceView() {
+        val race = RaceOrder()
+        race.addCar("701", "")
+        race.addCar("55", "")
+        race.updatePosition("701", 1, 1, 2.0)
+        race.updatePosition("55", 2, 1, 2.1)
+        val view = race.createRaceView()
+        val car701 = view.lookupCar("701")
+        val car55 = view.lookupCar("55")
+        // 701 is P1, 55 is P2 — so 55 is behind 701
+        assertEquals(car55, car701?.carBehind)
+        assertNull(car55?.carBehind)
     }
 
     private fun assertRaceOrder(view: RaceView, vararg expectedCarNumbers: String) {

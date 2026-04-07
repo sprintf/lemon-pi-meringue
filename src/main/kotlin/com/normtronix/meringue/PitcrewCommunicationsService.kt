@@ -355,6 +355,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
             .setDriverMessage(carData.driverMessage)
             .setCarAhead(carData.carAhead)
             .setCarBehind(carData.carBehind)
+            .setCarBehindGap(carData.carBehindGap)
             .setFastestLap(carData.fastestLap)
             .setFastestLapTime(carData.fastestLapTime)
             .setAvgLapTime(carData.avgLapTime)

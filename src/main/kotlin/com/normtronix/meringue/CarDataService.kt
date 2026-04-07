@@ -114,6 +114,7 @@ class CarDataService : CarDataServiceGrpcKt.CarDataServiceCoroutineImplBase(),
             carBehind?.let { behind ->
                 bldr.carBehind = behind.carNumber
                 bldr.carBehindAvgLapTime = behind.origin.recentAvgLapTime().toFloat()
+                bldr.carBehindGap = behind.gap(carInRace)
             }
         }
 

@@ -212,10 +212,19 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
             message.toBuilder().setTimestamp(System.currentTimeMillis()).build()
         else message
         pitcrewStreams[key]?.tryEmit(stamped)
-        val hist = messageHistory.getOrPut(key) { ArrayDeque() }
-        synchronized(hist) {
-            hist.addLast(stamped)
-            while (hist.size > MAX_HISTORY) hist.removeFirst()
+        // One-shot events (pitting, leaving pits, call requests) are not buffered for replay —
+        // replaying them causes duplicate UI rows and spurious push notifications.
+        val replayable = stamped.toPitCrewCase !in setOf(
+            Pitcrew.ToPitCrewMessage.ToPitCrewCase.CALL_REQUEST,
+            Pitcrew.ToPitCrewMessage.ToPitCrewCase.PITTING,
+            Pitcrew.ToPitCrewMessage.ToPitCrewCase.ENTERING
+        )
+        if (replayable) {
+            val hist = messageHistory.getOrPut(key) { ArrayDeque() }
+            synchronized(hist) {
+                hist.addLast(stamped)
+                while (hist.size > MAX_HISTORY) hist.removeFirst()
+            }
         }
     }
 

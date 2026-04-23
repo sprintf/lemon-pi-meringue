@@ -212,13 +212,9 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
             message.toBuilder().setTimestamp(System.currentTimeMillis()).build()
         else message
         pitcrewStreams[key]?.tryEmit(stamped)
-        // One-shot events (pitting, leaving pits, call requests) are not buffered for replay —
-        // replaying them causes duplicate UI rows and spurious push notifications.
-        val replayable = stamped.toPitCrewCase !in setOf(
-            Pitcrew.ToPitCrewMessage.ToPitCrewCase.CALL_REQUEST,
-            Pitcrew.ToPitCrewMessage.ToPitCrewCase.PITTING,
-            Pitcrew.ToPitCrewMessage.ToPitCrewCase.ENTERING
-        )
+        // Call requests are not buffered — replaying them causes spurious push notifications.
+        // Pitting/entering are buffered so clients can reconstruct pit stop history on reconnect.
+        val replayable = stamped.toPitCrewCase != Pitcrew.ToPitCrewMessage.ToPitCrewCase.CALL_REQUEST
         if (replayable) {
             val hist = messageHistory.getOrPut(key) { ArrayDeque() }
             synchronized(hist) {

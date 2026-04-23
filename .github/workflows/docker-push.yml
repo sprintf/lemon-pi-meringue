@@ -39,7 +39,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: us.gcr.io/meringue/meringue:${{ github.sha }}
+          tags: |
+            us.gcr.io/meringue/meringue:${{ github.sha }}
+            us.gcr.io/meringue/meringue:${{ github.ref_name }}
 
 #      - name: Build and push envoy image
 #        uses: docker/build-push-action@v6

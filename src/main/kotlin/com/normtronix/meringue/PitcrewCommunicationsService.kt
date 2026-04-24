@@ -130,7 +130,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         val isNewEmail = deviceStore.addEmailAddress(deviceId, email)
         if (isNewEmail) {
             log.info("qrAuthAndReg: new email $email registered for device=$deviceId car=${deviceInfo.carNumber}")
-            mailService.sendWelcomeEmail(email, deviceInfo.carNumber)
+            mailService.sendWelcomeGoogleAuthEmail(email, deviceInfo.carNumber)
             val allEmails = deviceStore.getEmailAddresses(deviceId)
             SendEmailAddressesToCarEvent(deviceInfo.trackCode, deviceInfo.carNumber, allEmails).emitAsync()
         }

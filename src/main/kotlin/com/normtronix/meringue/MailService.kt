@@ -29,7 +29,15 @@ class MailService() {
         this.mailgunDomain = domain
     }
 
+    suspend fun sendWelcomeGoogleAuthEmail(toEmail: String, carNumber: String): Boolean {
+        return sendTemplatedEmail(toEmail, carNumber, "welcome-google-auth")
+    }
+
     suspend fun sendWelcomeEmail(toEmail: String, carNumber: String): Boolean {
+        return sendTemplatedEmail(toEmail, carNumber, "welcome-pit")
+    }
+
+    private suspend fun sendTemplatedEmail(toEmail: String, carNumber: String, template: String): Boolean {
         if (apiKey.isBlank()) {
             log.warn("Mailgun API key not configured, skipping email to {}", toEmail)
             return false
@@ -46,7 +54,7 @@ class MailService() {
                 setBody(FormDataContent(Parameters.build {
                     // dont include the from as its in the template
                     append("to", toEmail)
-                    append("template", "welcome-pit")
+                    append("template", template)
                     append("h:X-Mailgun-Variables", mailgunVars.toString())
                 }))
             }

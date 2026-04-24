@@ -67,7 +67,7 @@ internal class PitcrewCommunicationsServiceTest {
     }
 
     @Test
-    fun testAuthFailsWithUnknownEmail() = runBlocking {
+    fun testAuthFailsWithUnknownEmail() { runBlocking {
         coEvery { deviceStore.findDevicesByEmailAndTeamCode("unknown@test.com", "123") } returns
                 emptyList()
 
@@ -79,11 +79,10 @@ internal class PitcrewCommunicationsServiceTest {
         assertThrows<BadCredentialsException> {
             runBlocking { service.auth(request) }
         }
-
-    }
+    } }
 
     @Test
-    fun testAuthFailsWithWrongTeamCode() = runBlocking {
+    fun testAuthFailsWithWrongTeamCode() { runBlocking {
         coEvery { deviceStore.findDevicesByEmailAndTeamCode("user@test.com", "999") } returns
                 emptyList()
 
@@ -95,7 +94,7 @@ internal class PitcrewCommunicationsServiceTest {
         assertThrows<BadCredentialsException> {
             runBlocking { service.auth(request) }
         }
-    }
+    } }
 
     @Test
     fun testGetCarStatus() = runBlocking {
@@ -184,7 +183,7 @@ internal class PitcrewCommunicationsServiceTest {
     }
 
     @Test
-    fun testAccessDeniedForUnownedCar() = runBlocking {
+    fun testAccessDeniedForUnownedCar() { runBlocking {
         pitcrewContext.set(PitcrewContext(listOf("device1"), "123", "test@example.com"))
         coEvery { deviceStore.getDeviceInfo("device1") } returns
                 DeviceDataStore.DeviceInfo("thil", "181", "123", listOf("test@example.com"))
@@ -198,7 +197,7 @@ internal class PitcrewCommunicationsServiceTest {
         assertThrows<AccessDeniedException> {
             runBlocking { service.sendDriverMessage(request) }
         }
-    }
+    } }
 
     @Test
     fun testGetCarStatusWithOfflineCar() = runBlocking {
@@ -265,7 +264,7 @@ internal class PitcrewCommunicationsServiceTest {
 
         service.qrAuthAndReg(qrRequest())
 
-        coVerify(exactly = 1) { mailService.sendWelcomeEmail("user@test.com", "181") }
+        coVerify(exactly = 1) { mailService.sendWelcomeGoogleAuthEmail("user@test.com", "181") }
     }
 
     @Test
@@ -302,7 +301,7 @@ internal class PitcrewCommunicationsServiceTest {
 
         service.qrAuthAndReg(qrRequest())
 
-        coVerify(exactly = 0) { mailService.sendWelcomeEmail(any(), any()) }
+        coVerify(exactly = 0) { mailService.sendWelcomeGoogleAuthEmail(any(), any()) }
     }
 
     @Test

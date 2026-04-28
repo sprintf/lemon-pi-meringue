@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
+import javax.annotation.PreDestroy
 
 @Component
 class LiveKitServerManager(
@@ -30,6 +31,24 @@ class LiveKitServerManager(
             }
         } catch (e: Exception) {
             log.warn("Could not start LiveKit VM $instance: ${e.message}")
+        }
+    }
+
+    @PreDestroy
+    fun stopLiveKitServer() {
+        try {
+            InstancesClient.create().use { client ->
+                val status = client.get(project, zone, instance).status
+                if (status != "RUNNING") {
+                    log.info("LiveKit VM $instance is not running (status: $status), skipping stop")
+                    return
+                }
+                log.info("Stopping LiveKit VM $instance")
+                client.stopAsync(project, zone, instance).get()
+                log.info("LiveKit VM $instance stop initiated")
+            }
+        } catch (e: Exception) {
+            log.warn("Could not stop LiveKit VM $instance: ${e.message}")
         }
     }
 }

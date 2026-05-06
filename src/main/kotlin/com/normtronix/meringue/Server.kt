@@ -188,6 +188,27 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     }
 
 
+    internal suspend fun sendSleepApp(trackCode: String, carNumber: String): Boolean {
+        val sleepMsg = LemonPi.SleepApp.newBuilder()
+            .setCarNumber(carNumber)
+            .setSender("meringue")
+            .setSeqNum(seqNo++)
+            .setTimestamp(Instant.now().epochSecond.toInt())
+            .build()
+        val wrapper = LemonPi.ToCarMessage.newBuilder()
+            .setSleepApp(sleepMsg)
+            .build()
+
+        log.info("request to sleep car $carNumber at $trackCode")
+        toCarIndex[trackCode]?.get(carNumber)?.radioKey?.apply {
+            val context = RequestDetails(trackCode, carNumber, this)
+            getSendChannel(context, toCarIndex).emit(wrapper)
+            log.info("sent sleep to car $carNumber at $trackCode")
+            return true
+        }
+        return false
+    }
+
     internal suspend fun setTargetLapTime(trackCode: String, carNumber: String, targetTimeSeconds: Int): Boolean {
         val targetTime = LemonPi.SetTargetTime.newBuilder()
             .setCarNumber(carNumber)

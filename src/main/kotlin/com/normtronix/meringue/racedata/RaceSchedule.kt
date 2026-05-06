@@ -56,7 +56,7 @@ class RaceSchedule : InitializingBean, EventHandler {
                     }
             .firstOrNull()
         return race?.let {
-            return "24 hours of lemons " + it.name + " " + it.track
+            return it.name + " " + it.track
         }
     }
 
@@ -88,9 +88,14 @@ class RaceSchedule : InitializingBean, EventHandler {
                             score(this, it) > 50
                         }
                         .collect(Collectors.toList())
-                if (selectedRace.size == 1) {
-                    log.info("selected race at ${e.trackCode} from RaceMonitor")
-                    connectToRace(e.trackCode, selectedRace[0], MeringueAdmin.RaceDataProvider.PROVIDER_RM)
+                when (selectedRace.size) {
+                    0 -> log.info("no matching live race found for title '$this' at ${e.trackCode}")
+                    1 -> {
+                        log.info("selected race at ${e.trackCode} from RaceMonitor")
+                        connectToRace(e.trackCode, selectedRace[0], MeringueAdmin.RaceDataProvider.PROVIDER_RM)
+                    }
+                    else -> log.warn("ambiguous match for '${this}' at ${e.trackCode} — " +
+                            "${selectedRace.size} candidates: ${selectedRace.map { "${it.raceId}:${it.trackName}" }}")
                 }
             } ?: log.info("no live races found at ${e.trackCode}")
         }

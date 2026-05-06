@@ -3,7 +3,6 @@ package com.normtronix.meringue.racedata
 import com.normtronix.meringue.event.*
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
-import com.microsoft.playwright.PlaywrightException
 import kotlinx.coroutines.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -76,8 +75,12 @@ open class DataSource1b(val raceId:String) : EventHandler, RaceDataSource {
                     }
                 }
             }
-        } catch (e: PlaywrightException) {
-            log.warn("caught playwrite exception", e)
+        } catch (e: Exception) {
+            if (e.message?.contains("Target page, context or browser has been closed") == true) {
+                log.info("race data stream closed")
+            } else {
+                log.warn("exception in race data stream: ${e.message}", e)
+            }
         }
     }
 

@@ -21,21 +21,21 @@ internal class RaceScheduleTest {
     fun findSonomaOnPracticeDay() {
         val s = RaceSchedule()
         val d = DateFormat.getDateInstance(DateFormat.SHORT).parse("12/04/2026")
-        assertEquals("24 hours of lemons Arse-Freeze-Apalooza 2026 Sonoma Raceway", s.findRaceTitle(d, "snma"))
+        assertEquals("Arse-Freeze-Apalooza 2026 Sonoma Raceway", s.findRaceTitle(d, "snma"))
     }
 
     @Test
     fun findSonomaOnSaturdayRaceDay() {
         val s = RaceSchedule()
         val d = DateFormat.getDateInstance(DateFormat.SHORT).parse("12/05/2026")
-        assertEquals("24 hours of lemons Arse-Freeze-Apalooza 2026 Sonoma Raceway", s.findRaceTitle(d, "snma"))
+        assertEquals("Arse-Freeze-Apalooza 2026 Sonoma Raceway", s.findRaceTitle(d, "snma"))
     }
 
     @Test
     fun findSonomaOnSundayRaceDay() {
         val s = RaceSchedule()
         val d = DateFormat.getDateInstance(DateFormat.SHORT).parse("12/06/2026")
-        assertEquals("24 hours of lemons Arse-Freeze-Apalooza 2026 Sonoma Raceway", s.findRaceTitle(d, "snma"))
+        assertEquals("Arse-Freeze-Apalooza 2026 Sonoma Raceway", s.findRaceTitle(d, "snma"))
     }
 
     @Test

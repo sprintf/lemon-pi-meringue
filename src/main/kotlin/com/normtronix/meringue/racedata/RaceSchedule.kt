@@ -49,12 +49,11 @@ class RaceSchedule : InitializingBean, EventHandler {
     }
 
     fun findRaceTitle(targetDate: Date, trackCode: String): String? {
-        val race = scheduledRaces.series
-            .filter { it.trackCode == trackCode &&
+        val race = scheduledRaces.series.firstOrNull {
+            it.trackCode == trackCode &&
                     targetDate.compareTo(endOfDay(it.endDate)) <= 0 &&
                     targetDate.compareTo(practiceDay(it.startDate)) >= 0
-                    }
-            .firstOrNull()
+        }
         return race?.let {
             return it.name + " " + it.track
         }
@@ -83,10 +82,9 @@ class RaceSchedule : InitializingBean, EventHandler {
             findRaceTitle(Date(), e.trackCode)?.apply {
                 // if it is not connected then try to connect it up
                 val selectedRace =
-                    raceLister1.getLiveRaces(emptyList())
-                        .filter {
-                            score(this, it) > 50
-                        }
+                    raceLister1.getLiveRaces()
+                        .filter { it.isLemons }
+                        .filter { score(this, it) > 70 }
                         .collect(Collectors.toList())
                 when (selectedRace.size) {
                     0 -> log.info("no matching live race found for title '$this' at ${e.trackCode}")

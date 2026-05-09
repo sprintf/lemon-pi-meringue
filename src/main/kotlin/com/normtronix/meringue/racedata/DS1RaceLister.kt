@@ -9,7 +9,12 @@ import java.net.URL
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
-class RaceDataIndexItem(val raceId: String, val trackName: String, val eventName: String? = null)
+class RaceDataIndexItem(
+    val raceId: String,
+    val trackName: String,
+    val eventName: String? = null,
+    val isLemons: Boolean = false,
+)
 
 @Component
 class DS1RaceLister {
@@ -20,7 +25,7 @@ class DS1RaceLister {
         loadData()
     }
 
-    fun getLiveRaces(terms: List<String>): Stream<RaceDataIndexItem> {
+    fun getLiveRaces(): Stream<RaceDataIndexItem> {
         return eventList.values.stream()
     }
 
@@ -39,9 +44,10 @@ class DS1RaceLister {
             val trackName = item.select("span.smallRaceText a").text()
             val raceId = item.select("span.largeRaceText a").attr("href")
                 .substringAfterLast("/")
+            val isLemons = item.select("img").any { it.attr("src").contains("lemons_logo") }
 
-            tmpEventList[raceId] = RaceDataIndexItem(raceId, eventName, trackName)
-            log.debug("found race <${raceId}> called $eventName at $trackName")
+            tmpEventList[raceId] = RaceDataIndexItem(raceId, eventName, trackName, isLemons)
+            log.debug("found race <${raceId}> called $eventName at $trackName (lemons=$isLemons)")
         }
 
         log.info("finished loading race index data : found ${tmpEventList.size} live races ")

@@ -8,6 +8,7 @@ import com.normtronix.meringue.event.RaceDisconnectEvent
 import com.normtronix.meringue.racedata.*
 import io.grpc.Status
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -21,7 +22,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.ExitCodeGenerator
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Configuration
@@ -33,11 +33,12 @@ import java.lang.management.ThreadMXBean
 import java.util.stream.Collectors
 
 
+@OptIn(DelicateCoroutinesApi::class)
 @GrpcService(interceptors = [AdminSecurityInterceptor::class])
 @GrpcAdvice
 @Configuration
 @kotlinx.coroutines.ExperimentalCoroutinesApi
-open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), InitializingBean {
+class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), InitializingBean {
 
     // Service-scoped coroutine scope for managing race data connections
     // Uses SupervisorJob so one failed connection doesn't cancel others
@@ -209,7 +210,7 @@ open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), In
 
     override suspend fun shutdown(request: Empty): Empty {
         log.warn("shutdown requested !!!")
-        SpringApplication.exit(appContext, ExitCodeGenerator { 0 })
+        SpringApplication.exit(appContext, { 0 })
         return Empty.getDefaultInstance()
     }
 
@@ -244,7 +245,7 @@ open class AdminService : AdminServiceGrpcKt.AdminServiceCoroutineImplBase(), In
     }
 
     override suspend fun findLiveRaces(request: MeringueAdmin.SearchTermsRequest): MeringueAdmin.LiveRaceListResponse {
-        val liveRacesRM = raceLister1.getLiveRaces(request.termList.toList())
+        val liveRacesRM = raceLister1.getLiveRaces()
             .map {
                 MeringueAdmin.LiveRace.newBuilder()
                     .setRaceId(it.raceId)

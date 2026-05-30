@@ -28,7 +28,7 @@ internal class CarTelemetryToPitCrewTest {
 
     @BeforeEach
     fun setup() {
-        Events.registry.clear()
+        Events.clearForTesting()
 
         server = Server()
         server.carStore = mockk()
@@ -52,7 +52,7 @@ internal class CarTelemetryToPitCrewTest {
     @AfterEach
     fun teardown() {
         PitcrewContextInterceptor.pitcrewContext.remove()
-        Events.registry.clear()
+        Events.clearForTesting()
     }
 
     private fun setPitcrewAuth() {

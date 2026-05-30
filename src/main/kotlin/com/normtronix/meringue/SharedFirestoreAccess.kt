@@ -1,7 +1,8 @@
 package com.normtronix.meringue
 
-import com.google.cloud.firestore.DocumentSnapshot
 import com.google.cloud.firestore.Firestore
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
 /**
@@ -37,16 +38,18 @@ class SharedFirestoreAccess(private val db: Firestore) {
      * Used for authentication lookup.
      */
     fun findDevicesByEmailAndTeamCode(email: String, teamCode: String): List<String> {
-        return try {
-            val query = db.collection(DEVICE_IDS)
-                .whereArrayContains(EMAIL_ADDRESSES, email)
-                .get()
-                .get(10, TimeUnit.SECONDS)
-            query.documents
-                .filter { it.getString(TEAM_CODE) == teamCode }
-                .map { it.id }
-        } catch (e: Exception) {
-            emptyList()
+        return withForkedGrpcContext {
+            try {
+                val query = db.collection(DEVICE_IDS)
+                    .whereArrayContains(EMAIL_ADDRESSES, email)
+                    .get()
+                    .get(10, TimeUnit.SECONDS)
+                query.documents
+                    .filter { it.getString(TEAM_CODE) == teamCode }
+                    .map { it.id }
+            } catch (e: Exception) {
+                emptyList()
+            }
         }
     }
 
@@ -54,19 +57,22 @@ class SharedFirestoreAccess(private val db: Firestore) {
      * Get device information by device ID.
      */
     fun getDeviceInfo(deviceId: String): DeviceInfo? {
-        return try {
-            val doc = db.collection(DEVICE_IDS).document(deviceId).get().get(10, TimeUnit.SECONDS)
-            if (doc.exists()) {
-                val track = doc.getString(TRACK_CODE) ?: return null
-                val car = doc.getString(CAR_NUMBER) ?: return null
-                val team = doc.getString(TEAM_CODE) ?: return null
-                val emails = (doc.get(EMAIL_ADDRESSES) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                DeviceInfo(track, car, team, emails)
-            } else {
+        return withForkedGrpcContext {
+            try {
+                val doc = db.collection(DEVICE_IDS).document(deviceId).get().get(10, TimeUnit.SECONDS)
+                if (doc.exists()) {
+                    val track = doc.getString(TRACK_CODE) ?: return@withForkedGrpcContext null
+                    val car = doc.getString(CAR_NUMBER) ?: return@withForkedGrpcContext null
+                    val team = doc.getString(TEAM_CODE) ?: return@withForkedGrpcContext null
+                    val emails = (doc.get(EMAIL_ADDRESSES) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                    DeviceInfo(track, car, team, emails)
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                log.error("failed to get device info for $deviceId", e)
                 null
             }
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -75,19 +81,28 @@ class SharedFirestoreAccess(private val db: Firestore) {
      * Cars are considered online if their TTL timestamp is within the last 10 minutes.
      */
     fun getCarStatus(trackCode: String, carNumber: String): CarStatus? {
-        return try {
-            val doc = db.collection(ONLINE_CARS).document("$trackCode:$carNumber").get().get(10, TimeUnit.SECONDS)
-            if (doc.contains(TTL) && doc.contains(IP)) {
-                CarStatus(
-                    isOnline = isRecentTTL(doc),
-                    ipAddress = doc.getString(IP),
-                    deviceId = doc.getString(DEVICE_ID)
-                )
-            } else {
+        val docKey = "$trackCode:$carNumber"
+        return withForkedGrpcContext {
+            try {
+                val doc = db.collection(ONLINE_CARS).document(docKey).get().get(10, TimeUnit.SECONDS)
+                if (doc.contains(TTL) && doc.contains(IP)) {
+                    val ttl = doc.getTimestamp(TTL)
+                    val ageSeconds = if (ttl != null) System.currentTimeMillis() / 1000 - ttl.seconds else null
+                    val recent = ageSeconds != null && ageSeconds < TEN_MINUTES
+                    log.debug("onlineCars doc '$docKey': ttl=$ttl ageSeconds=$ageSeconds isRecent=$recent")
+                    CarStatus(
+                        isOnline = recent,
+                        ipAddress = doc.getString(IP),
+                        deviceId = doc.getString(DEVICE_ID)
+                    )
+                } else {
+                    log.debug("onlineCars doc '$docKey': exists=${doc.exists()} hasTTL=${doc.contains(TTL)} hasIP=${doc.contains(IP)} — returning null")
+                    null
+                }
+            } catch (e: Exception) {
+                log.error("failed to get car status for $docKey", e)
                 null
             }
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -115,12 +130,9 @@ class SharedFirestoreAccess(private val db: Firestore) {
         val ipAddress: String?
     )
 
-    private fun isRecentTTL(doc: DocumentSnapshot): Boolean {
-        val ttl = doc.getTimestamp(TTL) ?: return false
-        return System.currentTimeMillis() / 1000 - ttl.seconds < TEN_MINUTES
-    }
-
     companion object {
+        val log: Logger = LoggerFactory.getLogger(SharedFirestoreAccess::class.java)
+
         // DeviceIds collection
         internal const val DEVICE_IDS = "DeviceIds"
         internal const val TRACK_CODE = "trackCode"

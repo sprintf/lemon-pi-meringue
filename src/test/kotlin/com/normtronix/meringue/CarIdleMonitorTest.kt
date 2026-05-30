@@ -1,7 +1,7 @@
 package com.normtronix.meringue
 
 import com.normtronix.meringue.CarIdleMonitor.TimedPosition
-import com.normtronix.meringue.racedata.RaceOrder
+import com.normtronix.meringue.racedata.RaceSchedule
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -11,12 +11,13 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.Date
 
 internal class CarIdleMonitorTest {
 
     private lateinit var monitor: CarIdleMonitor
     private lateinit var server: Server
-    private lateinit var adminService: AdminService
+    private lateinit var raceSchedule: RaceSchedule
 
     private val BASE_LAT = 39.537f
     private val BASE_LON = -122.304f
@@ -27,11 +28,11 @@ internal class CarIdleMonitorTest {
     fun setup() {
         monitor = CarIdleMonitor(idleMinutes = 15L, idleRadiusMeters = 50.0)
         server = mockk()
-        adminService = mockk()
+        raceSchedule = mockk()
         monitor.server = server
-        monitor.adminService = adminService
+        monitor.raceSchedule = raceSchedule
 
-        every { adminService.raceMap } returns mutableMapOf()
+        every { raceSchedule.findRaceTitle(any(), any()) } returns null
         coEvery { server.sendSleepApp(any(), any()) } returns true
     }
 
@@ -77,9 +78,9 @@ internal class CarIdleMonitorTest {
     }
 
     @Test
-    fun `active race suppresses sleep`() {
+    fun `race weekend suppresses sleep`() {
         wireCarToServer("thil", "99")
-        every { adminService.raceMap } returns mutableMapOf("thil" to RaceOrder())
+        every { raceSchedule.findRaceTitle(any<Date>(), "thil") } returns "Some Race Thunderhill"
         injectPositions("thil", "99", List(20) { BASE_LAT to BASE_LON })
 
         monitor.checkForIdleCars()

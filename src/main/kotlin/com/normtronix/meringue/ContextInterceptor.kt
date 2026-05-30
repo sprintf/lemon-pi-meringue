@@ -33,6 +33,8 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
             true -> headers[xffHeader]!!
             else -> ""
         }
+        val appVersionHeader = Metadata.Key.of("x-app-version", Metadata.ASCII_STRING_MARSHALLER)
+        val appVersion = headers[appVersionHeader] ?: ""
         if (authHeader == null || !authHeader.startsWith("Basic ")) {
             return EmptyCoroutineContext
         }
@@ -41,7 +43,8 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
             val requestDetails = buildContext(
                 decoded,
                 trackMetaData,
-                remoteAddress
+                remoteAddress,
+                appVersion
             )
             if (requestDetails != null) {
                 requestor.set(requestDetails)
@@ -58,7 +61,8 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
 
     fun buildContext(authToken: String,
                      trackMetaDataLoader: TrackMetaDataLoader,
-                     remoteIpAddr: String): RequestDetails? {
+                     remoteIpAddr: String,
+                     appVersion: String = ""): RequestDetails? {
         log.debug("processing $authToken coming from $remoteIpAddr")
         if (!authToken.contains(':')) {
             return null
@@ -79,7 +83,7 @@ class ContextInterceptor() : CoroutineContextServerInterceptor() {
             2 -> ""
             else -> segments[2]
         }
-        return RequestDetails(firstSegment[0], firstSegment[1], segments[1], deviceId, remoteIpAddr)
+        return RequestDetails(firstSegment[0], firstSegment[1], segments[1], deviceId, remoteIpAddr, appVersion)
     }
 
 
@@ -95,7 +99,8 @@ open class RequestDetails(
     val carNum: String,
     val teamCode: String,
     val deviceId: String,
-    val remoteIpAddr: String
+    val remoteIpAddr: String,
+    val appVersion: String = ""
 ) {
     constructor(trackCode: String, carNum: String, teamCode: String) : this(trackCode, carNum, teamCode, deviceId = ANY_DEVICE, remoteIpAddr = "")
 

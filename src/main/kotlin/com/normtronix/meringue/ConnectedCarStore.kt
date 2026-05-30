@@ -46,30 +46,33 @@ class ConnectedCarStore() {
         if (request == null) return null
 
         var previousDeviceId: String? = null
-        try {
-            val docRef = db.collection(ONLINE_CARS).document("${request.trackCode}:${request.carNum}")
-            val existing = docRef.get().get(10, TimeUnit.SECONDS)
+        withForkedGrpcContext {
+            try {
+                val docRef = db.collection(ONLINE_CARS).document("${request.trackCode}:${request.carNum}")
+                val existing = docRef.get().get(10, TimeUnit.SECONDS)
 
-            if (existing.exists()) {
-                val oldDeviceId = existing.getString(DEVICE_ID)
-                val oldIp = existing.getString(IP)
-                // Reinstall detected: same IP but different deviceId
-                if (oldDeviceId != null && oldDeviceId != request.deviceId && oldIp == request.remoteIpAddr) {
-                    previousDeviceId = oldDeviceId
-                    log.info("reinstall detected for car ${request.carNum}: old device=$oldDeviceId, new device=${request.deviceId}")
+                if (existing.exists()) {
+                    val oldDeviceId = existing.getString(DEVICE_ID)
+                    val oldIp = existing.getString(IP)
+                    // Reinstall detected: same IP but different deviceId
+                    if (oldDeviceId != null && oldDeviceId != request.deviceId && oldIp == request.remoteIpAddr) {
+                        previousDeviceId = oldDeviceId
+                        log.info("reinstall detected for car ${request.carNum}: old device=$oldDeviceId, new device=${request.deviceId}")
+                    }
                 }
+
+                docRef.set(hashMapOf(
+                    KEY to request.teamCode,
+                    IP to request.remoteIpAddr,
+                    DEVICE_ID to request.deviceId,
+                    TTL to getTimeNow(),
+                    APP_VERSION to request.appVersion
+                ).toMap()).get(10, TimeUnit.SECONDS)
+                log.info("stored car ${request.carNum} details in connected db ip=${request.remoteIpAddr} appVersion=${request.appVersion.ifEmpty { "unknown" }}")
+
+            } catch (e: Exception) {
+                log.error("failed to write to firestore", e)
             }
-
-            docRef.set(hashMapOf(
-                KEY to request.teamCode,
-                IP to request.remoteIpAddr,
-                DEVICE_ID to request.deviceId,
-                TTL to getTimeNow()
-            ).toMap()).get(10, TimeUnit.SECONDS)
-            log.info("stored car ${request.carNum} details in connected db ip=${request.remoteIpAddr}")
-
-        } catch (e: Exception) {
-            log.error("failed to write to firestore", e)
         }
         return previousDeviceId
     }
@@ -77,12 +80,14 @@ class ConnectedCarStore() {
     fun getTimeNow() = Timestamp.now()
 
     fun refreshTtl(trackCode: String, carNumber: String) {
-        try {
-            val docRef = db.collection(ONLINE_CARS).document("$trackCode:$carNumber")
-            docRef.update(TTL, getTimeNow()).get(10, TimeUnit.SECONDS)
-            log.debug("refreshed TTL for $carNumber at $trackCode")
-        } catch (e: Exception) {
-            log.error("failed to refresh TTL for $carNumber at $trackCode", e)
+        withForkedGrpcContext {
+            try {
+                val docRef = db.collection(ONLINE_CARS).document("$trackCode:$carNumber")
+                docRef.update(TTL, getTimeNow()).get(10, TimeUnit.SECONDS)
+                log.debug("refreshed TTL for $carNumber at $trackCode")
+            } catch (e: Exception) {
+                log.error("failed to refresh TTL for $carNumber at $trackCode", e)
+            }
         }
     }
 
@@ -133,5 +138,6 @@ class ConnectedCarStore() {
         val log: Logger = LoggerFactory.getLogger(ConnectedCarStore::class.java)
 
         private const val KEY = "key"
+        const val APP_VERSION = "appVersion"
     }
 }

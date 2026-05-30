@@ -4,6 +4,7 @@ import com.normtronix.meringue.event.Event
 import com.normtronix.meringue.event.EventHandler
 import com.normtronix.meringue.event.Events
 import com.normtronix.meringue.event.GpsPositionEvent
+import com.normtronix.meringue.racedata.RaceSchedule
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
@@ -13,6 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.time.Duration
 import java.time.Instant
+import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.cos
 import kotlin.math.pow
@@ -25,7 +27,7 @@ class CarIdleMonitor(
 ) : EventHandler, InitializingBean {
 
     @Autowired lateinit var server: Server
-    @Autowired lateinit var adminService: AdminService
+    @Autowired lateinit var raceSchedule: RaceSchedule
 
     internal data class TimedPosition(val lat: Float, val lon: Float, val at: Instant)
 
@@ -59,7 +61,7 @@ class CarIdleMonitor(
         val trackSnapshot = server.toCarIndex.toMap()
 
         for ((trackCode, carMap) in trackSnapshot) {
-            if (adminService.raceMap.containsKey(trackCode)) continue
+            if (raceSchedule.findRaceTitle(Date(), trackCode) != null) continue
 
             for (carNumber in carMap.keys.toList()) {
                 val key = "$trackCode:$carNumber"

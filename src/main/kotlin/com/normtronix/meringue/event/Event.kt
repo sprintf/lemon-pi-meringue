@@ -9,6 +9,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.stream.Collectors
 
 interface EventHandler {
@@ -19,7 +21,11 @@ interface EventHandler {
 class Events {
 
     companion object {
-        val registry: MutableMap<Class<*>, MutableList<HandlerAndFilter>> = mutableMapOf()
+        private val registry: ConcurrentHashMap<Class<*>, CopyOnWriteArrayList<HandlerAndFilter>> = ConcurrentHashMap()
+
+        fun clearForTesting() = registry.clear()
+
+        internal fun handlersFor(clazz: Class<*>) = registry[clazz]
 
         // Application-scoped coroutine scope for async event emission
         // Uses SupervisorJob so one failed event doesn't cancel others
@@ -35,11 +41,7 @@ class Events {
         fun register(clazz: Class<*>,
                      handler: EventHandler,
                      filter: (Event) -> Boolean = { true }) {
-            if (!registry.containsKey(clazz)) {
-                registry[clazz] = mutableListOf(HandlerAndFilter(handler, filter))
-            } else {
-                registry[clazz]?.add(HandlerAndFilter(handler, filter))
-            }
+            registry.computeIfAbsent(clazz) { CopyOnWriteArrayList() }.add(HandlerAndFilter(handler, filter))
         }
 
         fun unregister(handler: EventHandler) {
@@ -89,7 +91,7 @@ open class Event(val debounce: Boolean = false) {
         }
         val event = this
         // for each of the handlers, call them
-        val handlers = Events.registry[this.javaClass]
+        val handlers = Events.handlersFor(this.javaClass)
         coroutineScope() {
             handlers?.forEach {
                 if (it.filter(event)) {

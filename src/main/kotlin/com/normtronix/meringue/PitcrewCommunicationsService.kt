@@ -201,7 +201,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
 
 
     // persistent flows keyed by "trackCode:carNumber", live until server restarts after race weekend
-    internal val pitcrewStreams = mutableMapOf<String, MutableSharedFlow<Pitcrew.ToPitCrewMessage>>()
+    internal val pitcrewStreams = ConcurrentHashMap<String, MutableSharedFlow<Pitcrew.ToPitCrewMessage>>()
 
     // rolling history of the last MAX_HISTORY messages per car, used to replay to late-joining clients
     internal val messageHistory = ConcurrentHashMap<String, ArrayDeque<Pitcrew.ToPitCrewMessage>>()
@@ -231,7 +231,7 @@ class PitcrewCommunicationsService : PitcrewServiceGrpcKt.PitcrewServiceCoroutin
         val key = "$trackCode:$carNumber"
         val since = request.sinceTimestamp
 
-        val liveFlow = pitcrewStreams.getOrPut(key) {
+        val liveFlow = pitcrewStreams.computeIfAbsent(key) {
             log.info("creating pitcrew stream for $carNumber at $trackCode")
             createPitcrewStream(trackCode, carNumber)
         }

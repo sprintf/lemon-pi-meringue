@@ -12,12 +12,12 @@ internal class EventsTest {
 
     @BeforeEach
     fun setup() {
-        Events.registry.clear()
+        Events.clearForTesting()
     }
 
     @AfterEach
     fun teardown() {
-        Events.registry.clear()
+        Events.clearForTesting()
     }
 
     @Test

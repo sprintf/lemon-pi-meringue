@@ -51,9 +51,6 @@ internal class AdminIntegrationTest {
     @MockBean
     lateinit var mailService: MailService
 
-    @MockBean
-    lateinit var gpsStorageService: GpsStorage
-
     @Autowired
     lateinit var adminService: AdminService
 

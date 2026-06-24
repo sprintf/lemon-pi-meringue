@@ -13,11 +13,15 @@ class TrackMetaDataLoader {
 
     val trackCodes = mutableSetOf<String>()
     val trackNameMap = mutableMapOf<String, String>()
+    val trackLatLng = mutableMapOf<String, Pair<Double, Double>>()
     var tracks = listOf<Track>()
 
     init {
         loadData()
     }
+
+    /** Reference location (midpoint of the start/finish line) for a track, or null. */
+    fun getTrackLatLng(code: String): Pair<Double, Double>? = trackLatLng[code]
 
     fun isValidTrackCode(code: String): Boolean {
         return trackCodes.contains(code)
@@ -46,8 +50,17 @@ class TrackMetaDataLoader {
         this.tracks = trackList.tracks.stream().collect(Collectors.toList())
         trackList.tracks.stream().forEach {
             trackNameMap[it.code] = it.name
+            parseMidpoint(it.start_finish_coords)?.let { ll -> trackLatLng[it.code] = ll }
         }
         log.info("finished loading track data")
+    }
+
+    /** Parse "(lat1,lng1),(lat2,lng2)" → midpoint (lat,lng). */
+    private fun parseMidpoint(coords: String): Pair<Double, Double>? {
+        val pts = Regex("""\((-?\d+\.?\d*),\s*(-?\d+\.?\d*)\)""").findAll(coords)
+            .map { Pair(it.groupValues[1].toDouble(), it.groupValues[2].toDouble()) }.toList()
+        if (pts.isEmpty()) return null
+        return Pair(pts.map { it.first }.average(), pts.map { it.second }.average())
     }
 
     class Tracks {

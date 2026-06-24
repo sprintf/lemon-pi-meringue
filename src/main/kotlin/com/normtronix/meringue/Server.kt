@@ -37,8 +37,6 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
     @Autowired
     lateinit var emailService : EmailAddressService
 
-    @Autowired
-    lateinit var gpsStorageService : GpsStorage
 
     // map of trackCode -> carNumber -> ChannelAndKey<LemonPi.ToPitMessage>
     val toPitIndex: MutableMap<String, MutableMap<String, ChannelAndKey<LemonPi.ToPitMessage>>> = mutableMapOf()
@@ -277,7 +275,7 @@ class Server : CommsServiceGrpcKt.CommsServiceCoroutineImplBase(), EventHandler 
         } else if (request.hasGpsData()) {
             val deviceId = requestDetails.deviceId
             if (deviceId.isNotBlank()) {
-                gpsStorageService.storeGpsData(deviceId, request.gpsData.payload.toByteArray())
+                CarGpsDataEvent(trackCode, carNumber, deviceId, request.gpsData).emit()
             } else {
                 log.warn("cannot store GPS data without a device ID")
             }

@@ -219,6 +219,19 @@ class GpsPositionEvent(
     }
 }
 
+// a 25Hz detailed-sector GPS upload (compressed payload + sector metadata)
+class CarGpsDataEvent(
+    val trackCode: String,
+    val carNumber: String,
+    val deviceId: String,
+    val sectorData: LemonPi.SectorGpsData
+): Event() {
+
+    override fun toString(): String {
+        return "CarGpsDataEvent : $carNumber ($trackCode) lap=${sectorData.lapNumber} sector=${sectorData.sectorNumber}"
+    }
+}
+
 class CarPittingEvent(
     val trackCode: String,
     val carNumber: String
